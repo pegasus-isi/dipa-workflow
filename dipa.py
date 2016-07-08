@@ -154,7 +154,6 @@ def write_image_dimensions_file( directory, individuals ):
 def write_initial_template_input_file( directory, individuals ):
 
     file = open( directory + "/" + "initial_template_input.txt", 'w')
-    file.write("ID,File" + "\n")
     for individual in individuals:
         file.write( individual[0] + "_spd.nii.gz" + "\n")
     file.close()

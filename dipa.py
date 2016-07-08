@@ -199,7 +199,7 @@ def main():
     f.close()
 
     # dup the dax to stdout for time being
-    dax.writeXML(sys.stdout)
+    #dax.writeXML(sys.stdout)
 
 if __name__ == "__main__":
     main()

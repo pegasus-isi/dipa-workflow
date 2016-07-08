@@ -14,7 +14,7 @@ export PEGASUS_LOCAL_BIN_DIR
 
 # generate the dax
 export PYTHONPATH=`pegasus-config --python`
-./dipa.py --input-dir ./input --input ./example/NormalizeFile.csv --output-dax dipa.dax
+./dipa.py --input-dir ./input --input-file ./example/NormalizeFile.csv --output-dax dipa.dax
 
 export EXECUTABLE_DIR=$TOPDIR/executables
 

@@ -34,7 +34,7 @@ tr dipa::CreateTemplate_Project{
 	profile condor  "request_disk" "2"
 
 	# environment varialbes that the scripts require
-	profile env "DTIK_ROOT" "/home/schoen/Public/DIPA/ThirdParty/DTI-TK"
+	profile env "DTIK_ROOT" "${DTIK_ROOT}"
 	profile env "EXECUTABLE_DIR" "${EXECUTABLE_DIR}"
 
 	# tells pegasus-kickstart to prepend path with the following path

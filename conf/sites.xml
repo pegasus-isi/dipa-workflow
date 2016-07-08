@@ -6,8 +6,8 @@
                 <file-server  operation="all" url="file:///${TOPDIR}/LOCAL/shared-scratch">
                 </file-server>
         </directory>    
-        <directory  path="${TOPDIR}/LOCAL/shared-storage" type="shared-storage" free-size="" total-size="">
-                <file-server  operation="all" url="file:///${TOPDIR}/LOCAL/shared-storage">
+        <directory  path="${TOPDIR}/outputs" type="shared-storage" free-size="" total-size="">
+                <file-server  operation="all" url="file:///${TOPDIR}/outputs">
                 </file-server>
         </directory>
         <profile namespace="env" key="PEGASUS_HOME">${PEGASUS_LOCAL_BIN_DIR}/..</profile> 

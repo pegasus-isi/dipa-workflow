@@ -11,8 +11,9 @@ of Wisconsin Madison.
   that is used as input for the dax generator dipa.py
 
 - To setup and run the workflow 
+```
   source setup.sh
   ./submit_dipa_workflow.sh
-
+```
 
 - The outputs for the pipeline will appear in the outputs directory.

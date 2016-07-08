@@ -74,7 +74,7 @@ def construct_image_dim_job( individual_id):
     args = []
     args.append( "--id=ID" + individual_id  )
     args.append( "--inputfile=" + individual_id + "_spd.nii.gz")
-    args.append( "--outputfile=" + individual_id + "__spd_dimensions.csv")
+    args.append( "--outputfile=" + individual_id + "_spd_dimensions.csv")
 
 
     input_file = individual_id + "_spd.nii.gz"

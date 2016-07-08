@@ -10,7 +10,9 @@ of Wisconsin Madison.
 - the example directory contains a sample input file NormalizeFile.csv
   that is used as input for the dax generator dipa.py
 
-- To setup and run the workflow execute the submit_dipa_workflow.sh
-  script.
+- To setup and run the workflow 
+  source setup.sh
+  ./submit_dipa_workflow.sh
+
 
 - The outputs for the pipeline will appear in the outputs directory.

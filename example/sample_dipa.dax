@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+<adag xmlns="http://pegasus.isi.edu/schema/DAX" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pegasus.isi.edu/schema/DAX http://pegasus.isi.edu/schema/dax-3.6.xsd" version="3.6" name="dipa">
+	<metadata key="name">Sample DIPA DAX</metadata>
+	<metadata key="createdby">Karan Vahi</metadata>
+
+	<job id="ID100307" namespace="dipa" name="ImageDim_Project" >
+		<argument> --id=ID100307 --inputfile=100307_spd.nii.gz --outputfile=100307_spd_dimensions.csv</argument>
+		<metadata key="time">60</metadata>
+		<uses name="100307_spd.nii.gz" link="input"/>
+		<uses name="100307_spd_dimensions.csv" link="output" register="true" transfer="true"/>
+	</job>
+
+	<job id="ID103414" namespace="dipa" name="ImageDim_Project" >
+		<argument> --id=ID103414 --inputfile=103414_spd.nii.gz --outputfile=103414_spd_dimensions.csv</argument>
+		<metadata key="time">60</metadata>
+		<uses name="103414_spd.nii.gz" link="input"/>
+		<uses name="103414_spd_dimensions.csv" link="output" register="true" transfer="true"/>
+	</job>
+
+	<job id="ID105115" namespace="dipa" name="ImageDim_Project" >
+		<argument> --id=ID105115 --inputfile=105115_spd.nii.gz --outputfile=105115_spd_dimensions.csv</argument>
+		<metadata key="time">60</metadata>
+		<uses name="105115_spd.nii.gz" link="input"/>
+		<uses name="105115_spd_dimensions.csv" link="output" register="true" transfer="true"/>
+	</job>
+
+	<job id="ID110411" namespace="dipa" name="ImageDim_Project" >
+		<argument> --id=ID110411 --inputfile=110411_spd.nii.gz --outputfile=110411_spd_dimensions.csv</argument>
+		<metadata key="time">60</metadata>
+		<uses name="110411_spd.nii.gz" link="input"/>
+		<uses name="110411_spd_dimensions.csv" link="output" register="true" transfer="true"/>
+	</job>
+
+	<job id="ID111312" namespace="dipa" name="ImageDim_Project" >
+		<argument> --id=ID111312 --inputfile=111312_spd.nii.gz --outputfile=111312_spd_dimensions.csv</argument>
+		<metadata key="time">60</metadata>
+		<uses name="111312_spd.nii.gz" link="input"/>
+		<uses name="111312_spd_dimensions.csv" link="output" register="true" transfer="true"/>
+	</job>
+
+	<job id="ID0000001" namespace="dipa" name="CreateTemplate_Project" >
+		<metadata key="time">60</metadata>
+		<uses name="100307_spd.nii.gz" link="input"/>
+		<uses name="103414_spd.nii.gz" link="input"/>
+		<uses name="105115_spd.nii.gz" link="input"/>
+		<uses name="110411_spd.nii.gz" link="input"/>
+		<uses name="111312_spd.nii.gz" link="input"/>
+		<uses name="image_dimension_files.csv" link="input"/>
+		<uses name="initial_template_input.txt" link="input"/>
+		<uses name="100307_spd_dimensions.csv" link="input"/>
+		<uses name="103414_spd_dimensions.csv" link="input"/>
+		<uses name="105115_spd_dimensions.csv" link="input"/>
+		<uses name="110411_spd_dimensions.csv" link="input"/>
+		<uses name="111312_spd_dimensions.csv" link="input"/>
+		<uses name="template_vsize.txt" link="output" register="true" transfer="true"/>
+		<uses name="template_resample_bool.txt" link="output" register="true" transfer="true"/>
+		<uses name="template_iso_vsize.txt" link="output" register="true" transfer="true"/>
+		<uses name="template_dim.txt" link="output" register="true" transfer="true"/>
+		<uses name="initial_template_orig.nii.gz" link="output" register="true" transfer="true"/>
+		<uses name="initial_template.nii.gz" link="output" register="true" transfer="true"/>
+		<uses name="mean_rigid0.nii.gz" link="output" register="true" transfer="true"/>
+	</job>
+
+	
+	<child ref="ID0000001">
+		<parent ref="ID100307"/>
+	</child>
+	<child ref="ID0000001">
+	  <parent ref="ID103414"/>
+	</child>
+	<child ref="ID0000001">
+	  <parent ref="ID105115"/>
+	</child>
+	
+	<child ref="ID0000001">
+	  <parent ref="ID110411"/>
+	</child>
+
+	<child ref="ID0000001">
+	  <parent ref="ID111312"/>
+	</child>
+	
+</adag>

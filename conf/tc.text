@@ -1,0 +1,45 @@
+tr dipa::ImageDim_Project{
+    site waisman {
+#        pfn "/study3/reference/pegasus-dev/sandbox/dipa_test/Scripts/Normalize_ImageDim_S_PROJECT_ID.sh"
+        pfn "${EXECUTABLE_DIR}/getimagedim.py"
+        arch "x86_64"
+        os "LINUX"
+        type "INSTALLED"
+	
+	#matches condor.request_cpus
+	profile pegasus "cores" "1"
+	profile pegasus "memory" "512"
+	profile condor  "request_disk" "2"
+
+	# tells pegasus-kickstart to prepend path with the following path
+	# used to pick up the nonstandard python installation
+	profile env "KICKSTART_PREPEND_PATH" "/home/schoen/Public/DIPA/ThirdParty/Python/bin/"
+	
+    }
+}
+
+
+
+
+tr dipa::CreateTemplate_Project{
+    site waisman {
+        pfn "${EXECUTABLE_DIR}/Normalize_CreateTemplate_S_PROJECT.sh"
+        arch "x86_64"
+        os "LINUX"
+        type "INSTALLED"
+	
+	#matches condor.request_cpus
+	profile pegasus "cores" "1"
+	profile pegasus "memory" "512"
+	profile condor  "request_disk" "2"
+
+	# environment varialbes that the scripts require
+	profile env "DTIK_ROOT" "/home/schoen/Public/DIPA/ThirdParty/DTI-TK"
+	profile env "EXECUTABLE_DIR" "${EXECUTABLE_DIR}"
+
+	# tells pegasus-kickstart to prepend path with the following path
+	# used to pick up the nonstandard python installation
+	profile env "KICKSTART_PREPEND_PATH" "/home/schoen/Public/DIPA/ThirdParty/Python/bin/"
+	
+    }
+}

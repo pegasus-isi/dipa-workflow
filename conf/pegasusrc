@@ -1,0 +1,12 @@
+pegasus.catalog.site.file ./conf/sites.xml
+
+pegasus.catalog.transformation Text
+pegasus.catalog.transformation.file ./conf/tc.text
+
+# our input directory is visible to the nodes on waisman
+pegasus.catalog.replica.directory.site waisman
+
+# the app name for metrics
+pegasus.metrics.app = dipa
+
+pegasus.gridstart.arguments = -f

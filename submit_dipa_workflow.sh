@@ -28,6 +28,7 @@ pegasus-plan \
     --dax dipa.dax \
     --force \
     --cleanup none \
+    --submit \
     -vv \
 
     

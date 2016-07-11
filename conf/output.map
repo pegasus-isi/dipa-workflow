@@ -1,0 +1,4 @@
+# an output.map file that uses regular expressions to
+# control where the outputs are placed.
+template_(.*)\.txt  file://${TOPDIR}/outputs/Parameters/[0] site="local" regex="true"
+.*   file://${TOPDIR}/outputs/[0] site="local" regex="true"

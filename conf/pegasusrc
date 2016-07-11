@@ -6,6 +6,12 @@ pegasus.catalog.transformation.file ./conf/tc.text
 # our input directory is visible to the nodes on waisman
 pegasus.catalog.replica.directory.site waisman
 
+# allows us to control where the outputs appear in the outputs
+# directory.
+pegasus.dir.storage.mapper                Replica
+pegasus.dir.storage.mapper.replica        Regex
+pegasus.dir.storage.mapper.replica.file ./conf/output.map
+
 # the app name for metrics
 pegasus.metrics.app = dipa
 

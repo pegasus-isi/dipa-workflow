@@ -159,6 +159,11 @@ def write_initial_template_input_file( directory, individuals ):
     file.close()
     return file.name
 
+def system_call(command):
+  #A shorthand for running system processes, such as FSL commands
+  p = subprocess.Popen(command.split(" "), stdout=subprocess.PIPE, shell=False)
+  return p.stdout.read()
+
 def main():
     # Configure command line option parser
     usage = '%s [options]' % sys.argv[0]
@@ -196,6 +201,9 @@ def main():
     print "Writing DAX to %s" %(os.path.abspath( options.daxfile ) )
     dax.writeXML(f)
     f.close()
+
+    pegasus_plan_command = "pegasus-plan --conf ./conf/pegasusrc --sites waisman --input input --output-site local --dir dags --dax dipa.dax --force --cleanup none --submit -vv"
+    system_call(pegasus_plan_command)
 
     # dup the dax to stdout for time being
     #dax.writeXML(sys.stdout)

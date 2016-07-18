@@ -3,7 +3,6 @@
 args=$@
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
-
 set -e
 
 # this variable is expanded by the planner when
@@ -18,9 +17,9 @@ export PEGASUS_LOCAL_BIN_DIR
 
 # generate the dax
 export PYTHONPATH=`pegasus-config --python`
-export EXECUTABLE_DIR=$TOPDIR/executables
+export EXECUTABLE_DIR=${DIR}/executables
 
-${DIR}/dipa.py $args
+$PTHONPATH ${DIR}/dipa.py $args
 #./dipa.py --input-dir ./input --input-file ./example/NormalizeFile.csv --output-dax dipa.dax
 
 

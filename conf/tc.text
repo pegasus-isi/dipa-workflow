@@ -5,7 +5,7 @@ tr dipa::ImageDim_Project{
         arch "x86_64"
         os "LINUX"
         type "INSTALLED"
-	
+
 	#matches condor.request_cpus
 	profile pegasus "cores" "1"
 	profile pegasus "memory" "512"
@@ -14,7 +14,7 @@ tr dipa::ImageDim_Project{
 	# tells pegasus-kickstart to prepend path with the following path
 	# used to pick up the nonstandard python installation
 	profile env "KICKSTART_PREPEND_PATH" "/home/schoen/Public/DIPA/ThirdParty/Python/bin/"
-	
+
     }
 }
 
@@ -27,19 +27,19 @@ tr dipa::CreateTemplate_Project{
         arch "x86_64"
         os "LINUX"
         type "INSTALLED"
-	
+
 	#matches condor.request_cpus
 	profile pegasus "cores" "1"
 	profile pegasus "memory" "512"
 	profile condor  "request_disk" "2"
 
 	# environment varialbes that the scripts require
-	profile env "DTIK_ROOT" "${DTIK_ROOT}"
+	profile env "DTITK_ROOT" "${DTITK_ROOT}"
 	profile env "EXECUTABLE_DIR" "${EXECUTABLE_DIR}"
 
 	# tells pegasus-kickstart to prepend path with the following path
 	# used to pick up the nonstandard python installation
 	profile env "KICKSTART_PREPEND_PATH" "/home/schoen/Public/DIPA/ThirdParty/Python/bin/"
-	
+
     }
 }

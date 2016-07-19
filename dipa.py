@@ -3,7 +3,7 @@
 
 import sys
 import os
-#import optparse
+import shutil
 import subprocess
 import pandas
 import csv
@@ -230,11 +230,22 @@ def main():
     options["InputFile"] = os.path.abspath(options["InputFile"])
     options["ProjectDir"] = os.path.abspath(options["ProjectDir"])
     options["DaxFile"] = os.path.abspath(options["DaxFile"])
+    options["DipaDir"] = os.path.dirname(os.path.realpath(__file__))
+    os.environ["DTITK_ROOT"] = options["DipaDir"]+"/bin/dtitk"
     if not os.path.exists(options["ProjectDir"]):
         os.makedirs(options["ProjectDir"])
-    for directory in [options["ProjectDir"]+"/input",options["ProjectDir"]+"/output",options["ProjectDir"]+"/working"]:
+    for directory in [options["ProjectDir"]+"/input",options["ProjectDir"]+"/output",options["ProjectDir"]+"/working",]:
         if not os.path.exists(directory):
             os.mkdir(directory)
+    try:
+        shutil.copytree(options["DipaDir"]+"/conf",options["ProjectDir"]+"/conf")
+    except OSError:
+        pass
+    except:
+        exit(1)
+
+
+
     #exit(0)
     # Configure command line option parser
     # usage = '%s [options]' % sys.argv[0]
@@ -271,8 +282,8 @@ def main():
     with open( options["DaxFile"],"w" ) as f:
         print "Writing DAX to {0}".format(options["DaxFile"])
         dax.writeXML(f)
-
-    pegasus_plan_command = "pegasus-plan --conf ./conf/pegasusrc --sites {Site} --input {ProjectDir}/input --output-site local --dir {ProjectDir}/working --dax {DaxFile} --force --cleanup none --submit -vv".format(**options)
+    os.chdir(options["ProjectDir"])
+    pegasus_plan_command = "pegasus-plan --conf {ProjectDir}/conf/pegasusrc --sites {Site} --input {ProjectDir}/input --output-site local --dir {ProjectDir}/working --dax {DaxFile} --force --cleanup none --submit -vv".format(**options)
     print(pegasus_plan_command)
 
     ###
@@ -280,7 +291,7 @@ def main():
     # [1]: Unable to instantiate Site Catalog  at edu.isi.pegasus.planner.catalog.site.SiteFactory.loadInstance(SiteFactory.java:234)
     # [2]: edu.isi.pegasus.planner.catalog.site.impl.XML caught edu.isi.pegasus.planner.catalog.site.SiteCatalogException
     #      Please specify the property pegasus.catalog.site.file in your properties file or have the file sites.xml in the current working directory
-    #      at edu.isi.pegasus.planner.catalog.site.impl.XML.connect(XML.java:128) 
+    #      at edu.isi.pegasus.planner.catalog.site.impl.XML.connect(XML.java:128)
 
     ###
     system_call(pegasus_plan_command)

@@ -2,3 +2,4 @@
 *.pyc
 WAISMAN
 bin
+*.DS_Store

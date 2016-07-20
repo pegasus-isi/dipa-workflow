@@ -33,7 +33,7 @@ tr dipa::CreateTemplate_Project{
 	profile pegasus "memory" "512"
 	profile condor  "request_disk" "2"
 
-	# environment varialbes that the scripts require
+	# environment variables that the scripts require
 	profile env "DTITK_ROOT" "${DTITK_ROOT}"
 	profile env "EXECUTABLE_DIR" "${EXECUTABLE_DIR}"
 

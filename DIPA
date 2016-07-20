@@ -1,19 +1,20 @@
 #!/bin/bash
 
 args=$@
+
+# This will set the $DIR equal to wherever this script is
+# living.
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 set -e
 
 # this variable is expanded by the planner when
 # parsing in the sites.xml file in the conf directory
-TOPDIR=`pwd`
-export TOPDIR
+#TOPDIR=`pwd`
+#export TOPDIR
 
 # pegasus bin directory is needed to find keg
-BIN_DIR=`pegasus-config --bin`
-PEGASUS_LOCAL_BIN_DIR=$BIN_DIR
-export PEGASUS_LOCAL_BIN_DIR
+export PEGASUS_LOCAL_BIN_DIR=`pegasus-config --bin`
 
 # generate the dax
 export PYTHONPATH=`pegasus-config --python`

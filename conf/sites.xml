@@ -2,21 +2,21 @@
 
 <sitecatalog xmlns="http://pegasus.isi.edu/schema/sitecatalog" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pegasus.isi.edu/schema/sitecatalog http://pegasus.isi.edu/schema/sc-4.1.xsd" version="4.1">
   <site  handle="local" arch="x86_64" os="LINUX" osrelease="" osversion="" glibc="">
-        <directory  path="${TOPDIR}/LOCAL/shared-scratch" type="shared-scratch" free-size="" total-size="">
-                <file-server  operation="all" url="file:///${TOPDIR}/LOCAL/shared-scratch">
-                </file-server>
-        </directory>    
-        <directory  path="${TOPDIR}/outputs" type="shared-storage" free-size="" total-size="">
-                <file-server  operation="all" url="file:///${TOPDIR}/outputs">
+        <directory  path="${ProjectDir}/working" type="shared-scratch" free-size="" total-size="">
+                <file-server  operation="all" url="file:///${ProjectDir}/working">
                 </file-server>
         </directory>
-        <profile namespace="env" key="PEGASUS_HOME">${PEGASUS_LOCAL_BIN_DIR}/..</profile> 
+        <directory  path="${ProjectDir}/outputs" type="shared-storage" free-size="" total-size="">
+                <file-server  operation="all" url="file:///${ProjectDir}/outputs">
+                </file-server>
+        </directory>
+        <profile namespace="env" key="PEGASUS_HOME">${PEGASUS_LOCAL_BIN_DIR}/..</profile>
         <profile namespace="pegasus" key="clusters.num" >1</profile>
   </site>
 
    <site handle="waisman" arch="x86_64" os="LINUX">
-        <directory  path="${TOPDIR}/WAISMAN/Data"  type="shared-scratch" free-size="" total-size="">
-                <file-server  operation="all"  url="file:///${TOPDIR}/WAISMAN/Data">
+        <directory  path="${ProjectDir}/workiing"  type="shared-scratch" free-size="" total-size="">
+                <file-server  operation="all"  url="file:///${ProjectDir}/working">
                 </file-server>
         </directory>
 
@@ -26,12 +26,12 @@
        <!-- set as Andrew sets it in template submit files -->
        <profile namespace="condor" key="getenv">True</profile>
 
-       <profile namespace="env" key="PEGASUS_HOME">${PEGASUS_BIN_DIR}/..</profile> 
+       <profile namespace="env" key="PEGASUS_HOME">${PEGASUS_BIN_DIR}/..</profile>
 
        <!-- set as Andrew sets it in template submit files -->
        <profile namespace="condor" key="getenv">True</profile>
 
-       <!-- ensures pegasus generated auxillary jobs run in local universe as scratch 
+       <!-- ensures pegasus generated auxillary jobs run in local universe as scratch
             system is visible on the submit host -->
         <profile namespace="pegasus" key="auxillary.local">true</profile>
    </site>

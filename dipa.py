@@ -214,9 +214,9 @@ def write_initial_template_input_file( directory, individuals ):
     file.close()
     return file.name
 
-def system_call(command):
+def system_call(command, environment={}):
   #A shorthand for running system processes, such as FSL commands
-  p = subprocess.Popen(command.split(" "), stdout=subprocess.PIPE, shell=False)
+  p = subprocess.Popen(command.split(" "), stdout=subprocess.PIPE, shell=False, env=environment)
   return p.stdout.read()
 
 def main():
@@ -231,18 +231,21 @@ def main():
     options["ProjectDir"] = os.path.abspath(options["ProjectDir"])
     options["DaxFile"] = os.path.abspath(options["DaxFile"])
     options["DipaDir"] = os.path.dirname(os.path.realpath(__file__))
-    os.environ["DTITK_ROOT"] = options["DipaDir"]+"/bin/dtitk"
+    environment = dict(os.environ)
+    environment["DTITK_ROOT"] = options["DipaDir"]+"/bin/dtitk"
+    environment["ProjectDir"] = options["ProjectDir"]
+    environment["DipaDir"] = options["DipaDir"]
+    #print os.environ.get('ProjectDir')
+    #print os.environ.get('DipaDir')
+    #sys.exit()
     if not os.path.exists(options["ProjectDir"]):
         os.makedirs(options["ProjectDir"])
-    for directory in [options["ProjectDir"]+"/input",options["ProjectDir"]+"/output",options["ProjectDir"]+"/working",]:
+    for directory in [options["ProjectDir"]+"/input",options["ProjectDir"]+"/outputs",options["ProjectDir"]+"/working",]:
         if not os.path.exists(directory):
             os.mkdir(directory)
-    try:
-        shutil.copytree(options["DipaDir"]+"/conf",options["ProjectDir"]+"/conf")
-    except OSError:
-        pass
-    except:
-        exit(1)
+    if os.path.exists(options["ProjectDir"]+"/conf"):
+        shutil.rmtree(options["ProjectDir"]+"/conf")
+    shutil.copytree(options["DipaDir"]+"/conf",options["ProjectDir"]+"/conf")
 
 
 
@@ -294,7 +297,7 @@ def main():
     #      at edu.isi.pegasus.planner.catalog.site.impl.XML.connect(XML.java:128)
 
     ###
-    system_call(pegasus_plan_command)
+    system_call(pegasus_plan_command, environment)
 
     # dup the dax to stdout for time being
     #dax.writeXML(sys.stdout)

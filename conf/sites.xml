@@ -15,7 +15,7 @@
   </site>
 
    <site handle="waisman" arch="x86_64" os="LINUX">
-        <directory  path="${ProjectDir}/workiing"  type="shared-scratch" free-size="" total-size="">
+        <directory  path="${ProjectDir}/working"  type="shared-scratch" free-size="" total-size="">
                 <file-server  operation="all"  url="file:///${ProjectDir}/working">
                 </file-server>
         </directory>

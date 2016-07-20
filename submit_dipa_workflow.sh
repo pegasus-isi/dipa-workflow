@@ -22,6 +22,7 @@ export EXECUTABLE_DIR=$TOPDIR/executables
 pegasus-plan \
     --conf ./conf/pegasusrc \
     --sites waisman \
+    --relative-submit-dir ${ProjectDir}/condorsubmit
     --input input \
     --output-site local \
     --dir dags \

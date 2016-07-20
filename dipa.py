@@ -286,7 +286,7 @@ def main():
         print "Writing DAX to {0}".format(options["DaxFile"])
         dax.writeXML(f)
     os.chdir(options["ProjectDir"])
-    pegasus_plan_command = "pegasus-plan --conf {ProjectDir}/conf/pegasusrc --sites {Site} --input-dir {ProjectDir}/input --output-dir {ProjectDir}/output --output-site local --dir {ProjectDir}/working --dax {DaxFile} --force --cleanup none --submit -vv".format(**options)
+    pegasus_plan_command = "pegasus-plan --conf {ProjectDir}/conf/pegasusrc --sites {Site} --input-dir {ProjectDir}/input --output-site local --relative-submit-dir ./condorsumbit --dir {ProjectDir}/working --dax {DaxFile} --force --cleanup none --submit -vv".format(**options)
     print(pegasus_plan_command)
 
     ###

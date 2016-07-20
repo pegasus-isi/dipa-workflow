@@ -2,8 +2,8 @@
 
 <sitecatalog xmlns="http://pegasus.isi.edu/schema/sitecatalog" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pegasus.isi.edu/schema/sitecatalog http://pegasus.isi.edu/schema/sc-4.1.xsd" version="4.1">
   <site  handle="local" arch="x86_64" os="LINUX" osrelease="" osversion="" glibc="">
-        <directory  path="${ProjectDir}/working" type="shared-scratch" free-size="" total-size="">
-                <file-server  operation="all" url="file:///${ProjectDir}/working">
+        <directory  path="${ProjectDir}/working/local-scratch" type="shared-scratch" free-size="" total-size="">
+                <file-server  operation="all" url="file:///${ProjectDir}/working/local-scratch">
                 </file-server>
         </directory>
         <directory  path="${ProjectDir}/outputs" type="shared-storage" free-size="" total-size="">
@@ -15,8 +15,8 @@
   </site>
 
    <site handle="waisman" arch="x86_64" os="LINUX">
-        <directory  path="${ProjectDir}/working"  type="shared-scratch" free-size="" total-size="">
-                <file-server  operation="all"  url="file:///${ProjectDir}/working">
+        <directory  path="${ProjectDir}/working/waisman-scratch"  type="shared-scratch" free-size="" total-size="">
+                <file-server  operation="all"  url="file:///${ProjectDir}/working/waisman-scratch">
                 </file-server>
         </directory>
 

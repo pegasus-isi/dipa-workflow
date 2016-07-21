@@ -1,0 +1,67 @@
+#!/bin/bash
+#============================================================================
+#
+#  Program:     DTI ToolKit (DTI-TK)
+#  Module:      $RCSfile: tsa_stats,v $ 
+#  Language:    bash
+#  Date:        $Date: 2011/12/21 20:39:22 $
+#  Version:     $Revision: 1.1.1.1 $
+#
+#  Copyright (c) Gary Hui Zhang (garyhuizhang@gmail.com).
+#  All rights reserverd.
+#
+#  Copyright (c) Caroline Brun (cbrun@picsl.upenn.edu).
+#  All rights reserverd.
+#
+#  DTI-TK is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  DTI-TK is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with DTI-TK.  If not, see <http://www.gnu.org/licenses/>.
+#============================================================================
+
+#
+# Statistical analysis on surface meshes for tract-specific analysis
+#
+
+# check DTITK_ROOT variable
+if [ -z "${DTITK_ROOT}" ]
+then
+	echo "Environment variable DTITK_ROOT is not defined"
+	exit 1
+fi
+
+# source dtitk_common.sh
+. ${DTITK_ROOT}/scripts/dtitk_common.sh
+
+if [ $# -lt 3 ]
+then
+echo "Statistical analysis on surface meshes for tract-specific analysis"
+echo "Usage: tsa_stats surfcluster_config.txt feature t-threshold"
+exit 1
+fi
+
+config=$1
+feature=$2
+threshold=$3
+
+log_pref=`echo ${config} | sed -e 's/.config.txt//'`
+
+if [ `echo ${threshold}/1 | bc` -lt 0 ]
+then
+printvalue=`echo ${threshold}*-1 | bc`
+sign="_neg"
+else
+printvalue=${threshold}
+sign="_pos"
+fi
+
+meshcluster ${config} ${feature} ${threshold} .${feature}.vtk > ${log_pref}.ttst${printvalue}${sign}.${feature}.log
+

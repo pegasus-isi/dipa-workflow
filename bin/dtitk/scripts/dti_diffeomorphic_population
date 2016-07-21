@@ -1,0 +1,85 @@
+#!/bin/bash
+#============================================================================
+#
+#  Program:     DTI ToolKit (DTI-TK)
+#  Module:      $RCSfile: dti_diffeomorphic_population,v $
+#  Language:    bash
+#  Date:        $Date: 2011/12/21 20:39:22 $
+#  Version:     $Revision: 1.1.1.1 $
+#
+#  Copyright (c) Gary Hui Zhang (garyhuizhang@gmail.com).
+#  All rights reserverd.
+#
+#  DTI-TK is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  DTI-TK is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with DTI-TK.  If not, see <http://www.gnu.org/licenses/>.
+#============================================================================
+
+#
+# deformable alignment of a set of DTI volumes to some template with iterative
+# template optimization
+#
+
+# check DTITK_ROOT variable
+if [ -z "${DTITK_ROOT}" ]
+then
+	echo "Environment variable DTITK_ROOT is not defined"
+	exit 1
+fi
+
+# source dtitk_common.sh
+. ${DTITK_ROOT}/scripts/dtitk_common.sh
+
+if [ $# -lt 4 ]
+then
+	echo "Deformable alignment of a set of DTI volumes to a DTI template with iterative template optimization"
+	echo "Usage: `basename $0` initial_template subject_list_file mask ftol"
+	exit 1
+fi
+
+template=$1
+subjects=$2
+mask=$3
+ftol=$4
+
+cp $template mean_diffeomorphic_initial0.nii.gz
+subjects_diffeo=`echo $subjects | sed -e 's/.txt/_diffeo.txt/'`
+rm -fr ${subjects_diffeo}
+rm -fr diffeo.txt
+for subj in `cat ${subjects}`
+do
+	pref=`getTVPrefix ${subj}`
+	echo ${pref}_diffeo.nii.gz >> ${subjects_diffeo}
+	echo ${pref}_diffeo.df.nii.gz >> diffeo.txt
+done
+
+jid=ddpi_"$$"
+count=1
+template_current=mean_diffeomorphic_initial.nii.gz
+while [ $count -le 6 ]
+do
+	echo "dti_diffeomorphic_population_initial iteration" $count
+	let level=count
+	let oldcount=count-1
+	ln -sf mean_diffeomorphic_initial${oldcount}.nii.gz ${template_current}
+	dti_diffeomorphic_sn ${template_current} ${subjects} ${mask} ${level} ${ftol}
+	template_new=mean_diffeomorphic_initial${count}.nii.gz
+	TVMean -in ${subjects_diffeo} -out ${template_new}
+	VVMean -in diffeo.txt -out mean_df.nii.gz
+	dfToInverse -in mean_df.nii.gz
+	# cp ${template_new} b${template_new}
+	deformationSymTensor3DVolume -in ${template_new} -out ${template_new} -trans mean_df_inv.nii.gz
+	# clear up the temporary files
+	rm -fr ${template_current}
+	let count=count+1
+done
+

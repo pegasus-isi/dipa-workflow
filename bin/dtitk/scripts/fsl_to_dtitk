@@ -1,0 +1,63 @@
+#!/bin/bash
+#============================================================================
+#
+#  Program:     DTI ToolKit (DTI-TK)
+#  Module:      $RCSfile: fsl_to_dtitk,v $
+#  Language:    bash
+#  Date:        $Date: 2011/12/21 20:39:22 $
+#  Version:     $Revision: 1.1.1.1 $
+#
+#  Copyright (c) Gary Hui Zhang (garyhuizhang@gmail.com).
+#  All rights reserverd.
+#
+#  DTI-TK is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  DTI-TK is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with DTI-TK.  If not, see <http://www.gnu.org/licenses/>.
+#============================================================================
+
+#
+# Convert FSL-formatted tensor outputs (*_V{1,2,3}.nii.gz and *_L{1,2,3}.nii.gz)
+# to NIfTI tensor format and preprocess appropriately
+#
+
+if [ $# -lt 1 ]
+then
+	echo "Usage: $0 FSL_basename"
+	exit 1
+fi
+
+basename=$1
+tensor=${basename}_dtitk.nii.gz
+tensor_norm=${basename}_dtitk_norm.nii.gz
+tensor_non_outliers=${basename}_dtitk_norm_non_outliers.nii.gz
+norm_outlier_threshold=100
+multiplier=1000
+
+# Convert from FSL eigensystem (_V{1,2,3} and _L{1,2,3}) to NIfTI tensor format
+TVFromEigenSystem -basename ${basename} -out ${tensor} -type FSL
+
+# Convert the diffusivity unit to DTITK compatible one
+TVtool -in ${tensor} -scale ${multiplier} -out ${tensor}
+
+# Assume that the brain extraction has been done
+
+# Remove outliers quantified with tensor norm
+TVtool -in ${tensor} -norm
+BinaryThresholdImageFilter ${tensor_norm} ${tensor_non_outliers} 0 ${norm_outlier_threshold} 1 0
+TVtool -in ${tensor} -mask ${tensor_non_outliers} -out ${tensor}
+
+# Convert to SPD
+TVtool -in ${tensor} -spd -out ${tensor}
+
+# Clear the origin
+TVAdjustVoxelspace -in ${tensor} -origin 0 0 0
+

@@ -1,0 +1,56 @@
+#!/bin/bash
+#============================================================================
+#
+#  Program:     DTI ToolKit (DTI-TK)
+#  Module:      $RCSfile: dtitk_fill_holes,v $
+#  Language:    bash
+#  Date:        $Date: 2011/12/21 20:39:22 $
+#  Version:     $Revision: 1.1.1.1 $
+#
+#  Copyright (c) Gary Hui Zhang (garyhuizhang@gmail.com).
+#  All rights reserverd.
+#
+#  DTI-TK is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  DTI-TK is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with DTI-TK.  If not, see <http://www.gnu.org/licenses/>.
+#============================================================================
+
+#
+# A utility to fill small holes in a binary mask, useful for processing masks
+# generated with Brain Extraction Tool (BET) of FSL
+#
+
+# check DTITK_ROOT variable
+if [ -z "${DTITK_ROOT}" ]
+then
+	echo "Environment variable DTITK_ROOT is not defined"
+	exit 1
+fi
+
+# source dtitk_common.sh
+. ${DTITK_ROOT}/scripts/dtitk_common.sh
+
+if [ $# -lt 1 ]
+then
+	echo "A utility to fill internal holes in a mask, useful for processing masks generated with BET in FSL"
+	echo "Usage: `basename $0` input_mask"
+	exit 1
+fi
+
+input=$1
+pref=`echo $input | sed -e 's/.nii.gz//'`
+
+BinaryThresholdImageFilter ${input} tmp.nii.gz 0 0 1 0
+ConnectedComponentImageFilter tmp.nii.gz tmp.nii.gz 1 10000
+BinaryThresholdImageFilter tmp.nii.gz ${pref}_filled.nii.gz 0 0 1 0
+rm -fr tmp.nii.gz
+

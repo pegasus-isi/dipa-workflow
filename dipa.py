@@ -168,7 +168,14 @@ def construct_template_project_job( individuals):
         j.uses( output_file, link=Link.OUTPUT, transfer=DEFAULT_INTERMEDIATE_FILES_TRANSFER_FLAG)
 
     # Finish job
-    j.addArguments(*args)
+    j.addArguments("--lookupfile", "image_dimension_files.csv",
+                   "--templateinputsfile", "initial_template_input.txt",
+                   "--resamplefile", "template_resample_bool.txt",
+                   "--vsizefile", "template_vsize.txt",
+                   "--dimsizefile", "template_dim.txt",
+                   "--orig", "initial_template_orig.nii.gz",
+                   "--initial", "initial_template.nii.gz",
+                   "--rigid", "mean_rigid0.nii.gz",)
 
     return j
 
@@ -286,7 +293,7 @@ def main():
         print "Writing DAX to {0}".format(options["DaxFile"])
         dax.writeXML(f)
     os.chdir(options["ProjectDir"])
-    pegasus_plan_command = "pegasus-plan --conf {ProjectDir}/conf/pegasusrc --sites {Site} --input-dir {ProjectDir}/input --output-site local --relative-submit-dir ./condorsumbit --dir {ProjectDir}/working --dax {DaxFile} --force --cleanup none --submit -vv".format(**options)
+    pegasus_plan_command = "pegasus-plan --conf {ProjectDir}/conf/pegasusrc --sites {Site} --input-dir {ProjectDir}/input --output-site local --dir {ProjectDir}/working --relative-submit-dir ./condorsubmit --dax {DaxFile} --force --cleanup none --submit -vv".format(**options)
     print(pegasus_plan_command)
 
     ###

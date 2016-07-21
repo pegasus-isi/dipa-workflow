@@ -1,0 +1,101 @@
+#!/bin/bash
+#============================================================================
+#
+#  Program:     DTI ToolKit (DTI-TK)
+#  Module:      $RCSfile: scalar_rigid_reg,v $
+#  Language:    bash
+#  Date:        $Date: 2011/12/21 20:39:22 $
+#  Version:     $Revision: 1.1.1.1 $
+#
+#  Copyright (c) Gary Hui Zhang (garyhuizhang@gmail.com).
+#  All rights reserverd.
+#
+#  DTI-TK is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  DTI-TK is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with DTI-TK.  If not, see <http://www.gnu.org/licenses/>.
+#============================================================================
+
+#
+# rigid alignment of some subject to some template
+#
+
+#
+# source PATH setting from ~.bashrc
+# required for qsub to work
+#
+if [ -e ~/.bashrc ]
+then
+	. ~/.bashrc
+elif [ -e ~/.bash_profile ]
+then
+	. ~/.bash_profile
+fi
+
+# check DTITK_ROOT variable
+if [ -z "${DTITK_ROOT}" ]
+then
+	echo "Environment variable DTITK_ROOT is not defined"
+	exit 1
+fi
+
+# source dtitk_common.sh
+. ${DTITK_ROOT}/scripts/dtitk_common.sh
+
+if [ $# -lt 7 ]
+then
+	echo "Rigid alignment of a scalar volume (the subject) to a scalar template"
+	echo "Usage: `basename $0` template subject SMOption xsep ysep zsep ftol [useInTrans]"
+	echo "Supported SMOptions:"
+	echo "1) SSD: Sum of Squared Differences in intensity"
+	echo "2) MI: Mutual Information"
+	echo "3) NMI: Normalized Mutual Information"
+	exit 1
+fi
+
+template=$1
+subject=$2
+smoption=$3
+xsep=$4
+ysep=$5
+zsep=$6
+ftol=$7
+
+pref=`getTVPrefix $subject`
+out=${pref}_aff.nii.gz
+trans=${pref}.aff
+
+if [ $smoption == SSD ]
+then
+	cmd="rsvCGM"
+elif [ $smoption ==	NMI ]
+then
+	cmd="rsvDSM"
+elif [ $smoption ==	MI ]
+then
+	cmd="rsvDSM -SMOption 1"
+else
+	echo "unknown SMOption"
+	exit 1
+fi
+
+if [ $# == 7 ]
+then
+	$cmd -template $template -subject $subject -sep $xsep $ysep $zsep -ftol $ftol -outTrans $trans
+else
+	$cmd -template $template -subject $subject -sep $xsep $ysep $zsep -ftol $ftol -outTrans $trans -inTrans $trans
+fi
+
+affineScalarVolume -in $subject -target $template -out $out -trans $trans
+
+echo "done"
+echo
+

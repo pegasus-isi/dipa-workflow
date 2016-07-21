@@ -1,0 +1,76 @@
+#!/bin/bash
+#============================================================================
+#
+#  Program:     DTI ToolKit (DTI-TK)
+#  Module:      $RCSfile: dti_diffeomorphic_sn,v $
+#  Language:    bash
+#  Date:        $Date: 2011/12/21 20:39:22 $
+#  Version:     $Revision: 1.1.1.1 $
+#
+#  Copyright (c) Gary Hui Zhang (garyhuizhang@gmail.com).
+#  All rights reserverd.
+#
+#  DTI-TK is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  DTI-TK is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with DTI-TK.  If not, see <http://www.gnu.org/licenses/>.
+#============================================================================
+
+#
+# deformable alignment of a set of DTI volumes to some template
+#
+
+# check DTITK_ROOT variable
+if [ -z "${DTITK_ROOT}" ]
+then
+	echo "Environment variable DTITK_ROOT is not defined"
+	exit 1
+fi
+
+# source dtitk_common.sh
+. ${DTITK_ROOT}/scripts/dtitk_common.sh
+
+if [ $# -lt 5 ]
+then
+	echo "Deformable alignment of a set of DTI volumes to a DTI template"
+	echo "Usage: `basename $0` template subject_list_file mask no_of_iter ftol"
+	exit 1
+fi
+
+template=$1
+subjects=$2
+mask=$3
+no_of_iter=$4
+ftol=$5
+
+jid=ddr_"$$"
+
+for subj in `cat ${subjects}`
+do
+	echo $subj
+	pref=`getTVPrefix $subj`
+	if [ "${DTITK_USE_QSUB}" -eq 1 ]
+	then
+		jname=${jid}_${subj}
+		jname=`echo $jname | sed -e 's/\//_/g'`
+		cmd="${dtitk_qsub} -cwd -o ${pref}.log -e ${pref}.err -b y -N ${jname} ${DTITK_ROOT}/scripts/dti_diffeomorphic_reg"
+	else
+		cmd="${DTITK_ROOT}/scripts/dti_diffeomorphic_reg"
+	fi
+	${cmd} ${template} ${subj} ${mask} 1 ${no_of_iter} ${ftol}
+done
+
+if [ "${DTITK_USE_QSUB}" -eq 1 ]
+then
+	${dtitk_qsub} -sync y -hold_jid ${jid}_* -o /dev/null -e /dev/null -b y echo "done" > /dev/null
+	echo "done"
+fi
+

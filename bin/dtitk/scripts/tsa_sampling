@@ -1,0 +1,97 @@
+#!/bin/bash
+#============================================================================
+#
+#  Program:     DTI ToolKit (DTI-TK)
+#  Module:      $RCSfile: tsa_sampling,v $
+#  Language:    bash
+#  Date:        $Date: 2011/12/21 20:39:22 $
+#  Version:     $Revision: 1.1.1.1 $
+#
+#  Copyright (c) Gary Hui Zhang (garyhuizhang@gmail.com).
+#  All rights reserverd.
+#
+#  Copyright (c) Caroline Brun (cbrun@picsl.upenn.edu).
+#  All rights reserverd.
+#
+#  DTI-TK is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  DTI-TK is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with DTI-TK.  If not, see <http://www.gnu.org/licenses/>.
+#============================================================================
+
+#
+# Sampling diffusion features from a set of DTI volumes onto surface meshes
+# for tract-specific analysis
+#
+
+# check DTITK_ROOT variable
+if [ -z "${DTITK_ROOT}" ]
+then
+	echo "Environment variable DTITK_ROOT is not defined"
+	exit 1
+fi
+
+# source dtitk_common.sh
+. ${DTITK_ROOT}/scripts/dtitk_common.sh
+
+if [ $# -lt 2 ]
+then
+	echo "Sampling diffusion features from a set of DTI volumes onto surface meshes for tract-specific analysis"
+	echo "Usage: `basename $0` dti_volume_list.txt tsa_model_path [maxFA or mean]."
+	exit 1
+fi
+
+dti_volume=$1
+tsa_model_path=$2
+fa_type=$3
+
+if [ -e ${dti_volume} ]
+then
+	echo "found the file list: ${dti_volume}"
+else
+	echo "the file list: ${dti_volume} does not exist"
+	exit 1
+fi
+
+if [ -e ${tsa_model_path} ]
+then
+	echo "found the path to the tsa model: ${tsa_model_path}"
+else
+	echo "the path to the tsa model: ${tsa_model_path} does not exist"
+	exit 1
+fi
+
+if [[ ${fa_type} = "maxFA" ]] || [[ ${fa_type} = "mean" ]]
+then
+	echo "analyzed value: ${fa_type}"
+else
+	fa_type=maxFA
+	echo "Default value analyzed ${fa_type}"
+fi
+
+models=`find ${tsa_model_path}/ -maxdepth 1 -name "*" -type d |sed 's#^.*/##'`
+
+jid=ts_"$$"
+for model in ${models}
+do
+	echo ${model}
+	medial=${tsa_model_path}/${model}/fitting/mesh/def3.med.vtk
+	medial_pref=ixi_template_${model}_def3.med
+	if [ "${DTITK_USE_QSUB}" -eq 1 ]
+	then
+		jname=${jid}_${mode}
+		${dtitk_qsub} -cwd -e ${medial_pref}.err -o ${medial_pref}.log -b y -N ${jname} ${DTITK_ROOT}/bin/medialTensorField ${medial} ${dti_volume} ${fa_type} ${medial_pref}.${fa_type}.vtk
+		sleep 5
+	else
+		medialTensorField ${medial} ${dti_volume} ${fa_type} ${medial_pref}.${fa_type}.vtk
+	fi
+done
+

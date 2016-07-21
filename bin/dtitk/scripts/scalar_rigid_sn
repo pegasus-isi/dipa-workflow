@@ -1,0 +1,96 @@
+#!/bin/bash
+#============================================================================
+#
+#  Program:     DTI ToolKit (DTI-TK)
+#  Module:      $RCSfile: scalar_rigid_sn,v $
+#  Language:    bash
+#  Date:        $Date: 2011/12/21 20:39:22 $
+#  Version:     $Revision: 1.1.1.1 $
+#
+#  Copyright (c) Gary Hui Zhang (garyhuizhang@gmail.com).
+#  All rights reserverd.
+#
+#  DTI-TK is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  DTI-TK is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with DTI-TK.  If not, see <http://www.gnu.org/licenses/>.
+#============================================================================
+
+#
+# rigid alignment of a set of scalar volumes to some template
+#
+
+# check DTITK_ROOT variable
+if [ -z "${DTITK_ROOT}" ]
+then
+	echo "Environment variable DTITK_ROOT is not defined"
+	exit 1
+fi
+
+# source dtitk_common.sh
+. ${DTITK_ROOT}/scripts/dtitk_common.sh
+
+if [ $# -lt 3 ]
+then
+	echo "Rigid aligment of a set of scalar volumes to a scalar template"
+	echo "Usage: `basename $0` template subject_list_file SMOption [useInTrans]"
+	echo "Available SMOptions:"
+	echo "1) SSD: Sum of Squared Differences in intensity"
+	echo "2) MI: Mutual Information"
+	echo "3) NMI: Normalized Mutual Information"
+	exit 1
+fi
+
+template=$1
+subjects=$2
+smoption=$3
+
+jid=srr_"$$"
+
+sep_coarse=`echo ${lengthscale}*4 | bc -l`
+sep_fine=`echo ${lengthscale}*2 | bc -l`
+
+count=1
+while [ $count -le 2 ]
+do
+	echo "scalar_rigid_sn iteration" $count
+	for subj in `cat ${subjects}`
+	do
+		echo $subj
+		pref=`getTVPrefix $subj`
+		if [ "${DTITK_USE_QSUB}" -eq 1 ]
+		then
+			jname=${jid}_${subj}
+			jname=`echo $jname | sed -e 's/\//_/g'`
+			cmd="${dtitk_qsub} -cwd -o ${pref}.log -e ${pref}.err -b y -N ${jname} ${DTITK_ROOT}/scripts/scalar_rigid_reg"
+		else
+			cmd="${DTITK_ROOT}/scripts/scalar_rigid_reg"
+		fi
+		if [ $count -lt 2 ]
+		then
+			if [ $# == 4 ]
+			then
+				${cmd} ${template} ${subj} ${smoption} ${sep_coarse} ${sep_coarse} ${sep_coarse} 0.01 1
+			else
+				${cmd} ${template} ${subj} ${smoption} ${sep_coarse} ${sep_coarse} ${sep_coarse} 0.01
+			fi
+		else
+			${cmd} ${template} ${subj} ${smoption} ${sep_fine} ${sep_fine} ${sep_fine} 0.001 1
+		fi
+	done
+	if [ "${DTITK_USE_QSUB}" -eq 1 ]
+	then
+		${dtitk_qsub} -sync y -hold_jid ${jid}_* -o /dev/null -e /dev/null -b y echo "done" > /dev/null
+	fi
+	echo "done"
+	let count=count+1
+done
+

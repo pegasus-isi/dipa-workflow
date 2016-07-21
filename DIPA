@@ -8,11 +8,6 @@ DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 set -e
 
-# this variable is expanded by the planner when
-# parsing in the sites.xml file in the conf directory
-#TOPDIR=`pwd`
-#export TOPDIR
-
 # pegasus bin directory is needed to find keg
 export PEGASUS_LOCAL_BIN_DIR=`pegasus-config --bin`
 export PATH=/study3/reference/pegasus-dev/SOFTWARE/pegasus/default/bin:$PATH
@@ -22,19 +17,3 @@ export PYTHONPATH=`pegasus-config --python`
 export EXECUTABLE_DIR=${DIR}/executables
 
 $PTHONPATH ${DIR}/dipa.py $args
-#./dipa.py --input-dir ./input --input-file ./example/NormalizeFile.csv --output-dax dipa.dax
-
-
-
-# plan and submit the  workflow
-# pegasus-plan \
-#     --conf ./conf/pegasusrc \
-#     --sites waisman \
-#     --input input \
-#     --output-site local \
-#     --dir dags \
-#     --dax dipa.dax \
-#     --force \
-#     --cleanup none \
-#     --submit \
-#     -vv \

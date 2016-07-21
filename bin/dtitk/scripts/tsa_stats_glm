@@ -1,0 +1,72 @@
+#!/bin/bash
+#============================================================================
+#
+#  Program:     DTI ToolKit (DTI-TK)
+#  Module:      $RCSfile: tsa_stats_glm,v $
+#  Language:    bash
+#  Date:        $Date: 2012/03/29 09:04:31 $
+#  Version:     $Revision: 1.1 $
+#
+#  Copyright (c) Gary Hui Zhang (garyhuizhang@gmail.com)
+#                Caroline Brun (cbrun@picsl.upenn.edu)  .
+#  All rights reserverd.
+#
+#  DTI-TK is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  DTI-TK is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with DTI-TK.  If not, see <http://www.gnu.org/licenses/>.
+#===========================================================================
+
+
+if [ $# -lt 7 ]
+then
+	echo "Usage: tsa_stats_glm mesh_list_in.txt design_matrix contrast_matrix feature t-threshold statistics number_of_permutations"
+	echo "statistics must be P for a group analysis and C for a regression analysis"
+	exit 1
+fi
+
+
+# check DTITK_ROOT variable
+if [ -z "${DTITK_ROOT}" ]
+then
+	echo "Environment variable DTITK_ROOT is not defined"
+	exit 1
+fi
+
+# source dtitk_common.sh
+. ${DTITK_ROOT}/scripts/dtitk_common.sh
+
+mesh_in=$1
+design_mat=$2
+contrast_mat=$3
+feature=$4
+threshold=$5
+statistics=$6
+perm=$7
+
+mesh_glm_exe=`which meshglm`
+jid=tsa_glm_"$$"
+
+for mesh_name in `cat ${mesh_in}`
+do
+    echo ${mesh_name}
+    cmd="${mesh_glm_exe} -m ${mesh_name}.vtk ${mesh_name}.clusters.${feature}_${threshold}.vtk -a ${feature} -g ${design_mat} ${contrast_mat} -s ${statistics} -t ${threshold} -p ${perm} -e"
+
+	if [ "${DTITK_USE_QSUB}" -eq 1 ]
+	then
+		jname=${jid}_${mode}
+		${dtitk_qsub} -V -cwd -e ${mesh_name}.clusters.${feature}_${threshold}.err -o ${mesh_name}.clusters.${feature}_${threshold}.log -b y -N ${jname} $cmd
+	else 
+		${cmd} > ${mesh_name}.clusters.${feature}_${threshold}.log
+	fi
+
+done
+

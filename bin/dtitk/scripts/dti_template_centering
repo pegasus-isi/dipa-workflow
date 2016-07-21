@@ -1,0 +1,106 @@
+#!/bin/bash
+#============================================================================
+#
+#  Program:     DTI ToolKit (DTI-TK)
+#  Module:      $RCSfile: dti_template_centering,v $
+#  Language:    bash
+#  Date:        $Date: 2012/05/02 09:50:34 $
+#  Version:     $Revision: 1.4 $
+#
+#  Copyright (c) Gary Hui Zhang (garyhuizhang@gmail.com).
+#  All rights reserverd.
+#
+#  DTI-TK is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  DTI-TK is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with DTI-TK.  If not, see <http://www.gnu.org/licenses/>.
+#============================================================================
+
+#
+# affine alignment of a set of DTI volumes to some template with iterative
+# template optimization
+#
+
+# check DTITK_ROOT variable
+if [ -z "${DTITK_ROOT}" ]
+then
+	echo "Environment variable DTITK_ROOT is not defined"
+	exit 1
+fi
+
+# source dtitk_common.sh
+. ${DTITK_ROOT}/scripts/dtitk_common.sh
+
+if [ $# -lt 4 ]
+then
+	echo "Centering a DTI template"
+	echo "Usage: `basename $0` input_template subject_list_file standard_space_template output_template"
+	exit 1
+fi
+
+log=dti_template_centering.log
+err=dti_template_centering.err
+echo "command: " $* | tee ${log}
+date | tee -a ${log}
+
+template_pref=`getTVPrefix $1`
+subjects=$2
+standard_template=$3
+output=$4
+
+subjects_aff=`echo $subjects | sed -e 's/.txt/_aff.txt/'`
+rm -fr affine.txt ${subjects_aff}
+
+for subj in `cat ${subjects}`
+do
+	pref=`getTVPrefix ${subj}`
+	echo ${pref}_aff.nii.gz >> ${subjects_aff}
+	echo ${pref}.aff >> affine.txt
+done
+
+sep=`echo ${lengthscale}*2 | bc -l`
+
+jid=dtc_"$$"
+if [ "${DTITK_USE_QSUB}" -eq 1 ]
+then
+	${dtitk_qsub} -cwd -o ${template_pref}.log -e ${template_pref}.err -b y -N ${jid} ${DTITK_ROOT}/scripts/dti_rigid_reg ${standard_template} ${template_pref}.nii.gz NMI ${sep} ${sep} ${sep} 0.001
+	${dtitk_qsub} -sync y -hold_jid ${jid} -o /dev/null -e /dev/null -b y echo "done" > /dev/null
+else
+	dti_rigid_reg ${standard_template} ${template_pref}.nii.gz NMI ${sep} ${sep} ${sep} 0.001
+fi
+
+for aff in `cat affine.txt`
+do
+	affine3Dtool -in ${template_pref}.aff -compose $aff -out $aff
+	subj=`echo $aff | sed -e 's/.aff//'`
+	if [ "${DTITK_USE_QSUB}" -eq 1 ]
+	then
+		jname=${jid}_${subj}
+		jname=`echo $jname | sed -e 's/\//_/g'`
+		${dtitk_qsub} -cwd -e /dev/null -o /dev/null -b y -N ${jname} ${DTITK_ROOT}/bin/affineSymTensor3DVolume -in ${subj}.nii.gz -trans $aff -target ${template_pref}.nii.gz -out ${subj}_aff.nii.gz
+	else
+		affineSymTensor3DVolume -in ${subj}.nii.gz -trans $aff -target ${template_pref}.nii.gz -out ${subj}_aff.nii.gz
+	fi
+done
+if [ "${DTITK_USE_QSUB}" -eq 1 ]
+then
+	${dtitk_qsub} -sync y -hold_jid ${jid}_* -o /dev/null -e /dev/null -b y echo "done" > /dev/null
+fi
+
+if [ "${DTITK_USE_QSUB}" -eq 1 ]
+then
+	${dtitk_qsub} -cwd -o ${log} -e ${err} -b y -N ${jid} ${DTITK_ROOT}/bin/TVMean -in ${subjects_aff} -out ${output}
+	${dtitk_qsub} -sync y -hold_jid ${jid} -o /dev/null -e /dev/null -b y echo "done" > /dev/null
+else
+	TVMean -in ${subjects_aff} -out ${output}
+fi
+rm -fr ${template_pref}.aff ${template_pref}_aff.nii.gz
+

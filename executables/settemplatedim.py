@@ -10,13 +10,16 @@ doc = """
 Set Template Dimensions, Version {0}.
 
 Usage:
-    settemplatedim.py [options] --inputfile=<FILE> --outputprefix=<PREFIX>
+    settemplatedim.py [options] --inputfile <FILE> [--out_dim <FILE>] [--out_vsize <FILE>] [--out_iso_vsize <FILE>] [--out_resample_bool <FILE>]
 
 Options:
     -h --help                     Show this screen.
     -v --version                  Show version.
-    --inputfile=<FILE>            Input File (path).
-    --outputprefix=<PREFIX>       Output File for Voxel Size (path).
+    --inputfile <FILE>            Input File (path).
+    --out_dim <FILE>              Output path to the file which contains information about the number of voxels in the image. [default: ./template_dim.txt]
+    --out_vsize <FILE>            Output path to the file which contains information about the size of voxels in the image. [default: ./template_vsize.txt]
+    --out_iso_vsize <FILE>        Output path to the file which contains information about the size of voxels in the isometric image. [default: ./template_iso_vsize.txt]
+    --out_resample_bool <FILE>    Output path to the file which contains information about the whether resampling is necessary. [default: ./template_resample_bool.txt]
 """.format(Version)
 
 #============================================================================
@@ -105,19 +108,19 @@ def run(rawargs):
     else:
         isopixdim = max(modes)
 
-    xTemplateVSize = math.ceil(mode_xdim * mode_xpixdim * 4 / float(xTemplateDim)) / 4.0
-    yTemplateVSize = math.ceil(mode_ydim * mode_ypixdim * 4 / float(yTemplateDim)) / 4.0
-    zTemplateVSize = math.ceil(mode_zdim * mode_zpixdim * 4 / float(zTemplateDim)) / 4.0
+    xTemplateVSize = mode_xdim * mode_xpixdim / float(xTemplateDim)
+    yTemplateVSize = mode_ydim * mode_ypixdim / float(yTemplateDim)
+    zTemplateVSize = mode_zdim * mode_zpixdim / float(zTemplateDim)
 
     if mode_xdim == xTemplateDim and mode_ydim == yTemplateDim and mode_zdim == zTemplateDim and mode_xpixdim == xTemplateVSize and mode_ypixdim == yTemplateVSize and mode_zpixdim == zTemplateVSize:
         resample = False
     else:
         resample = True
 
-    writeToFile("{0} {1} {2}".format(xTemplateDim, yTemplateDim, zTemplateDim), cleanPathString(arguments["--outputprefix"]+"_dim.txt"))
-    writeToFile("{0} {1} {2}".format(xTemplateVSize, yTemplateVSize, zTemplateVSize), cleanPathString(arguments["--outputprefix"]+"_vsize.txt"))
-    writeToFile("{0} {0} {0}".format(isopixdim), cleanPathString(arguments["--outputprefix"]+"_iso_vsize.txt"))
-    writeToFile("{0}".format(resample), cleanPathString(arguments["--outputprefix"]+"_resample_bool.txt"))
+    writeToFile("{0} {1} {2}".format(xTemplateDim, yTemplateDim, zTemplateDim), arguments["--out_dim"])
+    writeToFile("{0} {1} {2}".format(xTemplateVSize, yTemplateVSize, zTemplateVSize), arguments["--out_vsize"])
+    writeToFile("{0} {0} {0}".format(isopixdim), arguments["--out_iso_vsize"])
+    writeToFile("{0}".format(resample), arguments["--out_resample_bool"])
 
     sys.exit(0)
 

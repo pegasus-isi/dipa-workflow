@@ -1,6 +1,5 @@
 tr dipa::ImageDim_Project{
     site waisman {
-#        pfn "/study3/reference/pegasus-dev/sandbox/dipa_test/Scripts/Normalize_ImageDim_S_PROJECT_ID.sh"
         pfn "${EXECUTABLE_DIR}/getimagedim.py"
         arch "x86_64"
         os "LINUX"
@@ -23,7 +22,7 @@ tr dipa::ImageDim_Project{
 
 tr dipa::CreateTemplate_Project{
     site waisman {
-        pfn "${EXECUTABLE_DIR}/Normalize_CreateTemplate_S_PROJECT.sh"
+        pfn "${EXECUTABLE_DIR}/Normalize_CreateTemplate.sh"
         arch "x86_64"
         os "LINUX"
         type "INSTALLED"

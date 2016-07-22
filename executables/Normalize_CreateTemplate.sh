@@ -11,7 +11,7 @@ resample_bool_file="./template_resample_bool.txt"
 vsize_file="./template_vsize.txt"
 iso_vsize_file="./template_iso_vsize.txt"
 dim_file="./template_dim.txt"
-existing_template_file="None"
+existing_template_file="None"  #"None" being a dummy value replaced with a filename if it exists.
 
 #Accept Arguments
 while [[ "$#" > 1 ]]; do case $1 in

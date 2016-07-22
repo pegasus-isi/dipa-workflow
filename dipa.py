@@ -13,7 +13,7 @@ __version__ = "0.3b"
 __doc__ = """Diffusion Image Processing and Analysis. v{0}
 
 Usage:
- DIPA [options] (--input <path> | -i <path>) (--project <path> | -p <path>) (--dax <path> | -d <path>) (--site <site> | -s <site>) [--tier <level>...]
+ DIPA [options] (--input <path> | -i <path>) (--project <path> | -p <path>) (--site <site> | -s <site>) [--tier <level>...]
 
 Components:
      Eddy Correction (Not Implemented)
@@ -27,7 +27,6 @@ Options:
      -v --version                    Show the current version. [default: False]
      -i <path> --input <path>        The input spreadsheet, in csv format.
      -p <path> --project <path>      The output directory.
-     -d <path> --dax <path>          The location to place the "DAX".
      -s <site> --site <site>         Site from site catalog to run the workflow.
      -k --keep_files                 Keep intermediate files. [default: False]
      --correct_type                  (Eddy Correction) Select 'eddy' or 'eddy_correct'. [default: eddy]
@@ -45,7 +44,6 @@ Options:
 __arg_mapping__ = {
  "--input": "InputFile",
  "--project": "ProjectDir",
- "--dax": "DaxFile",
  "--site": "Site",
  "--keep_files": "KeepFiles",
  "--correct_type": "CorrectType",
@@ -123,7 +121,7 @@ def getDAX( normalize_file, input_dir ):
 
 def construct_image_dim_job( individual_id):
 
-    j = Job(name="ImageDim_Project",namespace="dipa", id="ID" + individual_id,)
+    j = Job(name="Normalize_ImageDim",namespace="dipa", id="ID" + individual_id,)
 
     #--id=ID103414 --inputfile=103414_spd.nii.gz --outputfile=103414_spd_dimensions.csv
     args = []
@@ -147,7 +145,7 @@ def construct_image_dim_job( individual_id):
 
 def construct_template_project_job( individuals):
 
-    j = Job(name="CreateTemplate_Project",namespace="dipa")
+    j = Job(name="Normalize_CreateTemplate",namespace="dipa")
 
     args = []
 
@@ -233,18 +231,17 @@ def main():
     options = {}
     for argument_flag, argument_value in __arg_mapping__.iteritems():
         options[argument_value] = arguments[argument_flag]
-    print(options)
+
+    #Setup of environmental variables and options
     options["InputFile"] = os.path.abspath(options["InputFile"])
     options["ProjectDir"] = os.path.abspath(options["ProjectDir"])
-    options["DaxFile"] = os.path.abspath(options["DaxFile"])
+    options["DaxFile"] = options["ProjectDir"]+"/conf/master.dax"
     options["DipaDir"] = os.path.dirname(os.path.realpath(__file__))
     environment = dict(os.environ)
-    #environment["DTITK_ROOT"] = options["DipaDir"]+"/bin/dtitk"
     environment["ProjectDir"] = options["ProjectDir"]
     environment["DipaDir"] = options["DipaDir"]
-    #print os.environ.get('ProjectDir')
-    #print os.environ.get('DipaDir')
-    #sys.exit()
+
+    #Create some directories
     if not os.path.exists(options["ProjectDir"]):
         os.makedirs(options["ProjectDir"])
     for directory in [options["ProjectDir"]+"/input",options["ProjectDir"]+"/outputs",options["ProjectDir"]+"/working",]:
@@ -255,19 +252,18 @@ def main():
     shutil.copytree(options["DipaDir"]+"/conf",options["ProjectDir"]+"/conf")
 
 
+    #Create the DAX
     dax = getDAX(options["InputFile"], options["ProjectDir"]+"/input")
-
     with open( options["DaxFile"],"w" ) as f:
         print "Writing DAX to {0}".format(options["DaxFile"])
         dax.writeXML(f)
+
+    #Run pegasus-plan with these settings.
     os.chdir(options["ProjectDir"])
     pegasus_plan_command = "pegasus-plan --conf {ProjectDir}/conf/pegasusrc --sites {Site} --input-dir {ProjectDir}/input --output-site local --dir {ProjectDir}/working --relative-submit-dir ./condorsubmit --dax {DaxFile} --force --cleanup none --submit -vv".format(**options)
     print(pegasus_plan_command)
 
     system_call(pegasus_plan_command, environment)
-
-    # dup the dax to stdout for time being
-    #dax.writeXML(sys.stdout)
 
 if __name__ == "__main__":
     main()

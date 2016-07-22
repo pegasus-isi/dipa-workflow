@@ -29,14 +29,13 @@ while [[ "$#" > 1 ]]; do case $1 in
     *);;
   esac; shift
 done
-echo $existing_template_file
 
-#PROJECT=$1
 if [[ $show_help == "True" ]] ; then
   echo "Normalize_CreateTemplate"
   echo "Usage: "
   echo "    Normalize_CreateTemplate.sh [options] --lookupfile <FILE> --templateinputsfile <FILE> [--resamplefile <FILE> --vsizefile <FILE> --isovsizefile <FILE>] --dimsizefile <FILE> --orig <FILE> --initial <FILE> --rigid <FILE>"
   echo "    Normalize_CreateTemplate.sh [options] --lookupfile <FILE> --template <FILE>  [--resamplefile <FILE> --vsizefile <FILE> --isovsizefile <FILE>] --dimsizefile <FILE> --orig <FILE> --initial <FILE> --rigid <FILE>"
+  exit 0
 fi
 
 #Environmental variable checking
@@ -48,8 +47,6 @@ fi
 if [ x${EXECUTABLE_DIR} == x ] ; then
     echo "EXECUTABLE_DIR is not set "
 fi
-
-echo "System PATH is set to ${PATH}"
 
 #Source dtitk_common.sh
 source ${DTITK_ROOT}/scripts/dtitk_common.sh

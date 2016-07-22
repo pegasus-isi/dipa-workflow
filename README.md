@@ -12,7 +12,7 @@ of Wisconsin Madison.
 
 - To setup and run the workflow:
 ```
-  DIPA [options] (--input <path> | -i <path>) (--project <path> | -p <path>) (--dax <path> | -d <path>) (--site <site> | -s <site>) [--tier <level>...]
+  DIPA [options] (--input <path> | -i <path>) (--project <path> | -p <path>) (--site <site> | -s <site>) [--tier <level>...]
 ```
 
 - The outputs for the pipeline will appear in the outputs directory.

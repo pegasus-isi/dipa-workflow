@@ -1,19 +1,27 @@
 # dipa-workflow
 Pegasus workflow for the DIPA Pipeline at Waisman Center at University
-of Wisconsin Madison. 
+of Wisconsin Madison.
 
 - The pipeline is set to be submitted from waisman cluster headnode
-  guero.keck.waisman.wisc.edu. 
+  guero.keck.waisman.wisc.edu.
 
 - The pegasus configuration files can be found in the conf directory
 
 - the example directory contains a sample input file NormalizeFile.csv
   that is used as input for the dax generator dipa.py
 
-- To setup and run the workflow 
+- To setup and run the workflow:
 ```
-  source setup.sh
-  ./submit_dipa_workflow.sh
+  DIPA [options] (--input <path> | -i <path>) (--project <path> | -p <path>) (--dax <path> | -d <path>) (--site <site> | -s <site>) [--tier <level>...]
 ```
 
 - The outputs for the pipeline will appear in the outputs directory.
+
+- To check the status with pegasus-analyzer:
+```
+  pegasus-analyzer ${ProjectDir}/working/condorsubmit #Where $ProjectDir is the directory specified by --project/-p in the command above.
+```
+
+- To modify DIPA for your site:
+  * Update the conf/site_setup.sh script to suit your server configuration. Install any missing dependencies referenced there.
+  * Update the conf/sites.xml file to suit your server configuration and/or destination.

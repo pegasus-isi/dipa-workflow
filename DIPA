@@ -5,7 +5,6 @@ args=$@
 # This will set the $DIR equal to wherever this script is
 # living.
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-source ${DIR}/conf/site_setup.sh
 
 set -e
 
@@ -17,4 +16,4 @@ export PATH=/study3/reference/pegasus-dev/SOFTWARE/pegasus/default/bin:$PATH
 export PYTHONPATH=`pegasus-config --python`
 export EXECUTABLE_DIR=${DIR}/executables
 
-$PTHONPATH ${DIR}/dipa.py $args
+${DIR}/dipa.py $args

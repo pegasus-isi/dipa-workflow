@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import pandas
 import csv
+import json
 from docopt import docopt
 
 __version__ = "0.3b"
@@ -71,6 +72,33 @@ try:
 except:
     print("DIPA was unable to find your installation of Pegasus. Ensure you have Pegasus and HTCondor installed.")
     sys.exit(1)
+
+def clean_path(path):
+  if path.startswith("~"):
+    path = os.path.expanduser(path)
+  realpath = os.path.realpath(path)
+  return realpath
+
+def byteify(input):
+    if isinstance(input, dict):
+        return {byteify(key):byteify(value) for key, value in input.iteritems()}
+    elif isinstance(input, list):
+        return [ byteify(element) for element in input ]
+    elif isinstance(input, unicode):
+        return input.encode('utf-8')
+    else:
+        return input
+
+def read_json(jsonpath):
+    if os.path.exists(jsonpath):
+        with open(clean_path(jsonpath), "r") as jsonFile:
+          jsondata = json.load(jsonFile)
+          jsonFile.seek(0)
+        return byteify(jsondata)
+    else:
+        print("Error! JSON File '{0}' does not exist! Exiting now.".format(clean_path(jsonpath)))
+        sys.exit(1)
+
 
 def getDAX( normalize_file, input_dir ):
     """
@@ -238,6 +266,11 @@ def main():
     options["DaxFile"] = options["ProjectDir"]+"/conf/master.dax"
     options["DipaDir"] = os.path.dirname(os.path.realpath(__file__))
     environment = dict(os.environ)
+    jsonsettings = read_json(clean_path(options["DipaDir"]+"/conf/site_setup.json"))
+    jsonsettings["DTITK_ROOT"] = os.path.abspath(jsonsettings["DTITK_ROOT"])
+    jsonsettings["FSL_ROOT"] = os.path.abspath(jsonsettings["FSL_ROOT"])
+    environment.update(jsonsettings)
+
     environment["ProjectDir"] = options["ProjectDir"]
     environment["DipaDir"] = options["DipaDir"]
 

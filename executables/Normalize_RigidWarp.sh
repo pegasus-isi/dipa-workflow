@@ -2,31 +2,30 @@
 
 #Main coding by Andrew Schoen (schoen.andrewj@gmail.com)
 #With the guidance and expertise of Nagesh Adluru (nagesh.adluru@gmail.com)
-#And programming mentorship Nate Vack (njvack@gmail.com)
+#And Nate Vack (njvack@gmail.com)
 #And the assitance of Michael Stoneman (stonemanm@carleton.edu)
-#And Michael Dean
 #University of Wisconsin - Madison
-
 #Defaults:
 smoption="NMI"
+initial="False"
 
 #Accept Arguments
 while [[ "$#" > 1 ]]; do case $1 in
     --help) show_help="True";;
     -h) show_help="True";;
-    --affinelist) affine_list_file="$2";;
-    --newmean) new_mean_file="$2";;
-    --previousmean) previous_mean_file="$2";;
-    --smoption) smoption="${2}";;
-    --statictemplate) static="True";;
+    --mean) mean="$2";;
+    --image) image="$2";;
+    --smoption) smoption="$2";;
+    --sepcoarse) sepcoarse="$2";;
+    --initial) initial="True"
     *);;
   esac; shift
 done
 
 if [[ $show_help == "True" ]] ; then
-  echo "Normalize_RigidMean"
+  echo "Normalize_DiffeomorphicMean"
   echo "Usage: "
-  echo "    Normalize_RigidMean.sh [options] --affinelist <FILE> --newmean <FILE> --previousmean <FILE> --smoption <OPTION> --similarityfile <FILE> [--statictemplate]"
+  echo "    Normalize_DiffeomorphicMean.sh [options] --diffeolist <FILE> --dflist <FILE> --newmean <FILE> --dfmean <FILE> [--statictemplate --previousmean <FILE>]"
   exit 0
 fi
 
@@ -43,8 +42,10 @@ fi
 #Source dtitk_common.sh
 source ${DTITK_ROOT}/scripts/dtitk_common.sh
 
-if [[ $static == "True" ]] ; then
-  cp ${previous_mean_file} ${new_mean_file}
-else
-  ${DTIK_ROOT}/bin/TVMean -in ${affine_list_file} -out ${new_mean_file}
-fi
+if [ $initial == "True" ] ; then
+  bool="1"
+else:
+  bool=""
+
+#First iteration
+${DTITK_ROOT}/scripts/dti_rigid_reg ${mean} ${image} ${smoption} ${sepcoarse} ${sepcoarse} ${sepcoarse} 0.01 ${bool}

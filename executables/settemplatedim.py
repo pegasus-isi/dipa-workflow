@@ -76,8 +76,8 @@ def run(rawargs):
     inputfile = pandas.read_csv(cleanPathString(arguments["--inputfile"]))
     tablelist = []
     for index, row in inputfile.iterrows():
-        if exists(row["File"]):
-            tablelist.append(pandas.read_csv(cleanPathString(row["File"])))
+        if exists(row["FILE"]):
+            tablelist.append(pandas.read_csv(cleanPathString(row["FILE"])))
     masterdimfile = pandas.concat(tablelist)
 
     if len(masterdimfile) != 1:

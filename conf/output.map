@@ -1,7 +1,7 @@
 # an output.map file that uses regular expressions to
 # control where the outputs are placed.
-template_(.*)\.txt  file://${ProjectDir}/outputs/Normalize/Parameters/[0] site="local" regex="true"
-(.*)spd_dimensions.csv  file://${ProjectDir}/outputs/Normalize/Parameters/[0] site="local" regex="true"
-initial_template(.*)\.nii.gz file://${ProjectDir}/outputs/Normalize/Images/[0] site="local" regex="true"
-mean_(.*)\.nii.gz file://${ProjectDir}/outputs/Normalize/Images/[0] site="local" regex="true"
+(.*)template_(.*)\.txt  file://${ProjectDir}/outputs/Normalize/Parameters/[0] site="local" regex="true"
+(.*)_dimensions.csv  file://${ProjectDir}/outputs/Normalize/Parameters/[0] site="local" regex="true"
+(.*)_initial_template(.*)\.nii.gz file://${ProjectDir}/outputs/Normalize/Images/[0] site="local" regex="true"
+(.*)_mean_(.*)\.nii.gz file://${ProjectDir}/outputs/Normalize/Images/[0] site="local" regex="true"
 .*   file://${ProjectDir}/outputs/[0] site="local" regex="true"

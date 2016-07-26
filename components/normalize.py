@@ -1,5 +1,6 @@
 #!/bin/python
 from Pegasus.DAX3 import *
+import os
 import sys
 import pandas
 
@@ -19,12 +20,25 @@ class normalize(object):
         self.name = name
         self.template = template
         self.similarity_metric = similarity_metric
-        self.species = species
+        self.species = species.upper()
         self.rigid = rigid
         self.affine = affine
         self.diffeomorphic = diffeomorphic
         self.files = {}
         self.transferflag = transferflag
+
+        sep_lookup = {
+        "HUMAN":"4",
+        "MONKEY":"2",
+        "RAT":"0.4"
+        }
+        try:
+            self.sep_coarse = sep_lookup[self.species]
+        except:
+            print("The species you specified is not recognized. Select one of {0}".format(sep_lookup.keys()))
+            sys.exit(1)
+
+
         if "PROJECT" not in self.matrix.columns:
             self.matrix["PROJECT"] = self.name
         try:
@@ -40,28 +54,37 @@ class normalize(object):
         template_id = matrix[hierarchies[0]].unique()[0]
         source_tier = hierarchies[1]
         source_ids = list(matrix[matrix[template_tier] == template_id][source_tier])
-        ImageDim_Jobs = []
-        CreateTemplate_Jobs = []
 
         #ImageDim
+        ImageDim_Jobs = []
         for source_id in source_ids:
             imagedimjob = normalize_ImageDim(template_tier=template_tier, source_tier=source_tier, template_id=template_id, source_id=source_id, hierarchy=hierarchies, matrix=matrix, transferflag=self.transferflag)
             self.files.update(imagedimjob.files)
             ImageDim_Jobs.append(imagedimjob)
+            dax.addJob(imagedimjob.pegasus_job)
 
         #CreateTemplate
-        createtemplatejob = normalize_CreateTemplate(template_tier, source_tier, template_id, hierarchies, matrix, self.transferflag)
+        createtemplatejob = normalize_CreateTemplate(template_tier=template_tier, source_tier=source_tier, template_id=template_id, hierarchy=hierarchies, matrix=matrix, transferflag=self.transferflag)
         self.files.update(createtemplatejob.files)
-        CreateTemplate_Jobs.append(createtemplatejob)
-
+        dax.addJob(createtemplatejob.pegasus_job)
         for ImageDim_Job in ImageDim_Jobs:
-            dax.addJob(ImageDim_Job.pegasus_job)
-        for CreateTemplate_Job in CreateTemplate_Jobs:
-            dax.addJob(CreateTemplate_Job.pegasus_job)
+            dax.depends(parent=ImageDim_Job.pegasus_job, child=createtemplatejob.pegasus_job)
 
-        for CreateTemplate_Job in CreateTemplate_Jobs:
-            for ImageDim_Job in ImageDim_Jobs:
-                dax.depends(parent=ImageDim_Job.pegasus_job, child=CreateTemplate_Job.pegasus_job)
+        #Rigid
+        for rigid_iteration in range(1,self.rigid+1):
+            RigidWarp_Jobs = []
+            #Individual Warp
+            for source_id in source_ids:
+                rigidjob = normalize_RigidWarp(template_tier=template_tier, source_tier=source_tier, template_id=template_id, source_id=source_id, hierarchy=hierarchies, matrix=matrix, iteration=rigid_iteration, smoption=self.similarity_metric, sepcoarse=self.sep_coarse, transferflag=self.transferflag)
+                self.files.update(rigidjob.files)
+                RigidWarp_Jobs.append(rigidjob)
+                dax.addJob(rigidjob.pegasus_job)
+
+            #Group Mean
+            rigidmeanjob=normalize_RigidMean(template_tier=template_tier, source_tier=source_tier, template_id=template_id, hierarchy=hierarchies, matrix=matrix, iteration=rigid_iteration, smoption=self.similarity_metric, transferflag=self.transferflag)
+            dax.addJob(rigidmeanjob.pegasus_job)
+            for RigidWarp_Job in RigidWarp_Jobs:
+                dax.depends(parent=RigidWarp_Job.pegasus_job, child=rigidmeanjob.pegasus_job)
 
         #Possibly go deeper
         if len(hierarchies) > 2:
@@ -73,7 +96,7 @@ class normalize(object):
                         dax.depends(parent=parent.pegasus_job, child=ImageDim_Job.pegasus_job)
 
         #Will eventually return the last step in normalization for each tier
-        return dax, CreateTemplate_Jobs
+        return dax, [rigidmeanjob]
 
 
 
@@ -90,7 +113,7 @@ class normalize(object):
 class normalize_ImageDim(object):
     def __init__(self, template_tier, source_tier, template_id, source_id, hierarchy, matrix, transferflag):
         self.job_id = "{0}-{1}".format(source_tier, source_id)
-        self.pegasus_job = Job(name="Normalize_ImageDim", namespace="dipa", id=self.job_id)
+        self.pegasus_job = Job(name="Normalize_ImageDim", namespace="dipa", id=self.job_id+"_Normalize_ImageDim")
         self.files = {}
         #Check to see if this is the basic level of the normalization.
         #If so, use the SPD specified. Otherwise, input is the output of a previous step.
@@ -98,7 +121,7 @@ class normalize_ImageDim(object):
             inputfile = list(matrix[matrix[template_tier] == template_id][matrix[source_tier] == source_id]["SPD"])[0]
         else:
             inputfile = "{0}-{1}_template.nii.gz".format(source_tier, source_id)
-        outputfile = "{0}_dimensions.nii.gz".format(source_id)
+        outputfile = "{0}_dimensions.csv".format(source_id)
         args = ["--id={0}".format(source_id), "--inputfile="+inputfile, "--outputfile="+outputfile]
         self.pegasus_job.uses(inputfile, link=Link.INPUT)
         self.pegasus_job.uses(outputfile, link=Link.OUTPUT, transfer=transferflag)
@@ -107,7 +130,7 @@ class normalize_ImageDim(object):
 class normalize_CreateTemplate(object):
     def __init__(self, template_tier, source_tier, template_id, hierarchy, matrix, transferflag):
         self.job_id = "{0}-{1}".format(template_tier, template_id)
-        self.pegasus_job = Job(name="Normalize_CreateTemplate", namespace="dipa", id=self.job_id)
+        self.pegasus_job = Job(name="Normalize_CreateTemplate", namespace="dipa", id=self.job_id+"_Normalize_CreateTemplate")
         self.files = {}
 
 
@@ -144,7 +167,7 @@ class normalize_CreateTemplate(object):
         initial_template_input_text = "\n".join(spd_inputs)
         input_files.extend(spd_inputs)
         input_csv_contents = matrix[[source_tier]]
-        files = input_csv_contents[source_tier].apply(lambda row: "{0}_dimensions.nii.gz".format(row))
+        files = input_csv_contents[source_tier].apply(lambda row: "{0}_dimensions.csv".format(row))
         ids = input_csv_contents[source_tier]
         contents = pandas.DataFrame({"ID":ids, "FILE":files})
         input_csv_text = contents.to_csv(columns=["ID","FILE"], index=False)
@@ -152,7 +175,81 @@ class normalize_CreateTemplate(object):
         self.files["{0}_initial_template_input.txt".format(template_id)] = initial_template_input_text
         self.files["{0}_dimension_files.csv".format(template_id)] = input_csv_text
         for source_id in source_ids:
-            input_files.append("{0}_dimensions.nii.gz".format(source_id))
+            input_files.append("{0}_dimensions.csv".format(source_id))
+
+        for inputfile in input_files:
+            self.pegasus_job.uses(inputfile, link=Link.INPUT)
+        for outputfile in output_files:
+            self.pegasus_job.uses(outputfile, link=Link.OUTPUT, transfer=transferflag)
+
+class normalize_RigidWarp(object):
+    def __init__(self, template_tier, source_tier, template_id, source_id, iteration, smoption, sepcoarse, hierarchy, matrix, transferflag):
+        self.job_id = "{0}-{1}_i{2}".format(source_tier, source_id, iteration)
+        self.pegasus_job = Job(name="Normalize_RigidWarp", namespace="dipa", id=self.job_id+"_Normalize_RigidWarp")
+        self.files = {}
+        #Check to see if this is the basic level of the normalization.
+        #If so, use the SPD specified. Otherwise, input is the output of a previous step.
+        if source_tier == hierarchy[-1]:
+            inputfile = list(matrix[matrix[template_tier] == template_id][matrix[source_tier] == source_id]["SPD"])[0]
+        else:
+            inputfile = "{0}-{1}_template.nii.gz".format(source_tier, source_id)
+
+        inputbase = inputfile.split(".")[0]
+        if iteration == 1:
+            template_image = "{0}_initial_template.nii.gz".format(template_id)
+        else:
+            template_image = "{0}_mean_rigid{1}.nii.gz".format(template_id, iteration-1)
+
+        inputfiles = [inputfile, template_image]
+        outputfiles = ["{0}_aff.nii.gz".format(inputbase), "{0}.aff".format(inputbase)]
+        args = ["--mean", template_image,
+                "--image", inputfile,
+                "--smoption", smoption,
+                "--sepcoarse", sepcoarse]
+        if iteration == 1:
+            args.append("--initial")
+
+        for inputfile in inputfiles:
+            self.pegasus_job.uses(inputfile, link=Link.INPUT)
+        for outputfile in outputfiles:
+            self.pegasus_job.uses(outputfile, link=Link.OUTPUT, transfer=transferflag)
+
+        self.pegasus_job.addArguments(*args)
+
+class normalize_RigidMean(object):
+    def __init__(self, template_tier, source_tier, template_id, hierarchy, matrix, iteration, smoption, transferflag):
+        self.job_id = "{0}-{1}_i{2}".format(template_tier, template_id, iteration)
+        self.pegasus_job = Job(name="Normalize_RigidMean", namespace="dipa", id=self.job_id+"_Normalize_RigidMean")
+        self.files = {}
+
+        if iteration == 1:
+            previousmean = "{0}_initial_template.nii.gz".format(template_id)
+        else:
+            previousmean = "{0}_mean_rigid{1}.nii.gz".format(template_id, iteration-1)
+
+        args = ["--affinelist", "{0}_rigid_template_input.txt".format(template_id),
+                "--newmean", "{0}_mean_rigid{1}.nii.gz".format(template_id, iteration),
+                "--previousmean", previousmean,
+                "--smoption", smoption]
+
+        self.pegasus_job.addArguments(*args)
+
+        source_ids = list(matrix[matrix[template_tier] == template_id][source_tier])
+
+        aff_files = []
+        for source_id in source_ids:
+            if source_tier == hierarchy[-1]:
+                inputfile_base = list(matrix[matrix[template_tier] == template_id][matrix[source_tier] == source_id]["SPD"])[0].split(".")[0]
+                aff_files.append(inputfile_base + "_aff.nii.gz")
+            else:
+                aff_files.append("{0}-{1}_template_aff.nii.gz".format(source_tier, source_id))
+        input_files = ["{0}_rigid_template_input.txt".format(template_id)] + aff_files
+
+        output_files = ["{0}_mean_rigid{1}.nii.gz".format(template_id, iteration)]
+
+        rigid_template_input_text = "\n".join(aff_files)
+
+        self.files["{0}_rigid_template_input.txt".format(template_id)] = rigid_template_input_text
 
         for inputfile in input_files:
             self.pegasus_job.uses(inputfile, link=Link.INPUT)

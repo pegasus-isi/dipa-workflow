@@ -1,11 +1,6 @@
 #!/bin/bash -e
 
-#Main coding by Andrew Schoen (schoen.andrewj@gmail.com)
-#With the guidance and expertise of Nagesh Adluru (nagesh.adluru@gmail.com)
-#And Nate Vack (njvack@gmail.com)
-#And the assitance of Michael Stoneman (stonemanm@carleton.edu)
-#University of Wisconsin - Madison
-#Defaults:
+#Defaults
 smoption="NMI"
 initial="False"
 
@@ -17,15 +12,15 @@ while [[ "$#" > 1 ]]; do case $1 in
     --image) image="$2";;
     --smoption) smoption="$2";;
     --sepcoarse) sepcoarse="$2";;
-    --initial) initial="True"
+    --initial) initial="True";;
     *);;
   esac; shift
 done
 
 if [[ $show_help == "True" ]] ; then
-  echo "Normalize_DiffeomorphicMean"
+  echo "Normalize_RigidWarp"
   echo "Usage: "
-  echo "    Normalize_DiffeomorphicMean.sh [options] --diffeolist <FILE> --dflist <FILE> --newmean <FILE> --dfmean <FILE> [--statictemplate --previousmean <FILE>]"
+  echo "    Normalize_RigidWarp.sh [options] --mean <FILE> --image <FILE> --smoption <STR> --sepcoarse <STR> [--initial]"
   exit 0
 fi
 

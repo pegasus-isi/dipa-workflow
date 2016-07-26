@@ -1,12 +1,5 @@
 #!/bin/bash -e
 
-#Main coding by Andrew Schoen (schoen.andrewj@gmail.com)
-#With the guidance and expertise of Nagesh Adluru (nagesh.adluru@gmail.com)
-#And programming mentorship Nate Vack (njvack@gmail.com)
-#And the assitance of Michael Stoneman (stonemanm@carleton.edu)
-#And Michael Dean
-#University of Wisconsin - Madison
-
 #Defaults:
 smoption="NMI"
 

@@ -1,11 +1,5 @@
 #!/bin/bash
 
-
-#Main coding by Andrew Schoen (schoen.andrewj@gmail.com)
-#With the guidance and expertise of Nagesh Adluru (nagesh.adluru@gmail.com)
-#And Nate Vack (njvack@gmail.com)
-#And the assitance of Michael Stoneman (stonemanm@carleton.edu)
-#University of Wisconsin - Madison
 #Defaults:
 
 #Accept Arguments

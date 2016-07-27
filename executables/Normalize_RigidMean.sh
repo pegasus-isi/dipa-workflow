@@ -39,5 +39,5 @@ source ${DTITK_ROOT}/scripts/dtitk_common.sh
 if [[ $static == "True" ]] ; then
   cp ${previous_mean_file} ${new_mean_file}
 else
-  ${DTIK_ROOT}/bin/TVMean -in ${affine_list_file} -out ${new_mean_file}
+  ${DTITK_ROOT}/bin/TVMean -in ${affine_list_file} -out ${new_mean_file}
 fi

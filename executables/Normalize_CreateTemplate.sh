@@ -19,7 +19,7 @@ while [[ "$#" > 1 ]]; do case $1 in
     --dimsizefile) dim_file="$2";;
     --orig) orig_template_file="$2";;
     --initial) initial_template_file="$2";;
-    --rigid) rigid_file="$2";;
+    --srctemplate) existing_template_file="$2";;
     *);;
   esac; shift
 done
@@ -31,6 +31,15 @@ if [[ $show_help == "True" ]] ; then
   echo "    Normalize_CreateTemplate.sh [options] --lookupfile <FILE> --template <FILE>  [--resamplefile <FILE> --vsizefile <FILE> --isovsizefile <FILE>] --dimsizefile <FILE> --orig <FILE> --initial <FILE> --rigid <FILE>"
   exit 0
 fi
+
+echo $lookup_file
+echo $template_inputs_file
+echo $resample_bool_file
+echo $vsize_file
+echo $iso_vsize_file
+echo $dim_file
+echo $orig_template_file
+echo $existing_template_file
 
 #Environmental variable checking
 if [ x${DTITK_ROOT} == x ] ; then
@@ -48,17 +57,20 @@ source ${DTITK_ROOT}/scripts/dtitk_common.sh
 
 ${EXECUTABLE_DIR}/settemplatedim.py --inputfile ${lookup_file} --out_dim ${dim_file} --out_vsize ${vsize_file} --out_iso_vsize ${iso_vsize_file} --out_resample_bool ${resample_bool_file}
 
+resample=`cat ${resample_bool_file}`
+
 if [ "${existing_template_file}" == "None" ] ; then
+
   ${DTITK_ROOT}/bin/TVMean -in ${template_inputs_file} -out ${orig_template_file}
+
 else
-  cp ${existing_template_file} ${orig_template_file}
+
+  orig_template_file="${existing_template_file}"
+
 fi
 
-resample=`cat ${resample_bool_file}`
-if [[ $resample == True ]] ; then
+if [[ $resample == "True" ]] ; then
   ${DTITK_ROOT}/bin/TVResample -in ${orig_template_file} -vsize `cat ${vsize_file}` -size `cat ${dim_file}` -out ${initial_template_file}
 else
   cp ${orig_template_file} ${initial_template_file}
 fi
-
-cp ${initial_template_file} ${rigid_file}

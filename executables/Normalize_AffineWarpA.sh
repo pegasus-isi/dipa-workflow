@@ -16,9 +16,9 @@ while [[ "$#" > 1 ]]; do case $1 in
 done
 
 if [[ $show_help == "True" ]] ; then
-  echo "Normalize_AffineWarp"
+  echo "Normalize_AffineWarpA"
   echo "Usage: "
-  echo "    Normalize_AffineWarp.sh [options] --mean <FILE> --image <FILE> --smoption <STR> --sepcoarse <STR>"
+  echo "    Normalize_AffineWarpA.sh [options] --mean <FILE> --image <FILE> --smoption <STR> --sepcoarse <STR>"
   exit 0
 fi
 

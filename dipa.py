@@ -32,9 +32,9 @@ Options:
      -s <site> --site <site>         Site from site catalog to run the workflow.
      -k --keep_files                 Keep intermediate files. [default: False]
      -n <str> --name <str>           Add a custom name for the project. [default: Project]
-     --correct_type                  (Eddy Correction) Select 'eddy' or 'eddy_correct'. [default: eddy]
-     --fit_method                    (Model Fitting) Select either 'WLS' (weighted least squares) or 'OLS' (ordinary least squares) [default: WLS]
-     --template                      (Normalization) Designate an original template (optional). [default: None]
+     --correct_type <str>            (Eddy Correction) Select 'eddy' or 'eddy_correct'. [default: eddy]
+     --fit_method <str>              (Model Fitting) Select either 'WLS' (weighted least squares) or 'OLS' (ordinary least squares) [default: WLS]
+     --template <path>               (Normalization) Designate an original template (optional). [default: None]
      --similarity_metric <metric>    (Normalization) Registration type. [default: NMI]
      --species <species>             (Normalization) Species (either HUMAN, MONKEY, or RAT). [default: HUMAN]
      --rigid <rigidcount>            (Normalization) Number of rigid iterations. [default: 3]
@@ -53,7 +53,7 @@ __arg_mapping__ = {
  "--correct_type": "CorrectType",
  "--fit_method": "FitMethod",
  "--template": "Template",
- "--similarity_metric": "SimmilarityMetric",
+ "--similarity_metric": "SimilarityMetric",
  "--species": "Species",
  "--rigid": "RigidIterations",
  "--affine": "AffineIterations",
@@ -109,8 +109,10 @@ def create_workflow(options):
     """
 
     dax = ADAG( "dipa" )
-
-    raw_matrix = pandas.read_csv(clean_path(options["InputFile"]))
+    try:
+        raw_matrix = pandas.read_csv(clean_path(options["InputFile"]))
+    except:
+        print("Could not find the input file specified here: "+ clean_path(options["InputFile"]))
 
     for index, row in raw_matrix.iterrows():
         try:
@@ -122,9 +124,26 @@ def create_workflow(options):
     matrix = raw_matrix.copy()
     matrix["SPD"] = matrix["ID"].apply(lambda row: "{0}_spd.nii.gz".format(row))
 
-    normalize_section = normalize(matrix, hierarchy=options["NormalizeHierarchy"], name=options["ProjectName"])
+    print("Adding normalization to workflow.")
+    normalize_section = normalize(matrix, hierarchy=options["NormalizeHierarchy"],
+                                          name=options["ProjectName"],
+                                          template=options["Template"],
+                                          rigid=int(options["RigidIterations"]),
+                                          affine=int(options["AffineIterations"]),
+                                          diffeomorphic=int(options["DiffeomorphicIterations"]),
+                                          transferflag=DEFAULT_INTERMEDIATE_FILES_TRANSFER_FLAG,
+                                          similarity_metric=options["SimilarityMetric"],
+                                          species=options["Species"])
     dax = normalize_section.add_to_dax(dax)
+    if options["Template"] != None:
+        try:
+            shutil.copyfile(options["Template"], options["ProjectDir"]+"/input/"+options["ProjectName"]+"_template_orig.nii.gz")
+        except:
+            print("Error: Could not copy template file to project directory.")
+            sys.exit(1)
+    print("Saving files.")
     normalize_section.save_files(options["ProjectDir"]+"/input/")
+
 
     return dax
 
@@ -145,6 +164,16 @@ def main():
     #Setup of environmental variables and options
     options["InputFile"] = os.path.abspath(options["InputFile"])
     options["ProjectDir"] = os.path.abspath(options["ProjectDir"])
+    if options["Template"] in ["None", None, "False",False]:
+        options["Template"] = None
+    else:
+        print(options["Template"])
+        if os.path.exists(os.path.abspath(options["Template"])):
+            options["Template"] = os.path.abspath(options["Template"])
+        else:
+            print("Template file could not be found. Check that it exists at {0}".format(options["Template"]))
+
+    options["ProjectDir"] = os.path.abspath(options["ProjectDir"])
     options["DaxFile"] = options["ProjectDir"]+"/conf/master.dax"
     options["DipaDir"] = os.path.dirname(os.path.realpath(__file__))
     environment = dict(os.environ)
@@ -158,6 +187,7 @@ def main():
 
     #Create some directories
     if not os.path.exists(options["ProjectDir"]):
+        print("Setting up directories.")
         os.makedirs(options["ProjectDir"])
     for directory in [options["ProjectDir"]+"/input",options["ProjectDir"]+"/outputs",options["ProjectDir"]+"/working",]:
         if not os.path.exists(directory):
@@ -168,15 +198,17 @@ def main():
 
 
     #Create the DAX
+    print("Creating the workflow.")
     dax = create_workflow(options)
+    print("Saving the workflow")
     with open( options["DaxFile"],"w" ) as f:
         print "Writing DAX to {0}".format(options["DaxFile"])
         dax.writeXML(f)
 
     #Run pegasus-plan with these settings.
     os.chdir(options["ProjectDir"])
+    print("Submitting the workflow")
     pegasus_plan_command = "pegasus-plan --conf {ProjectDir}/conf/pegasusrc --sites {Site} --input-dir {ProjectDir}/input --output-site local --dir {ProjectDir}/working --relative-submit-dir ./condorsubmit --dax {DaxFile} --force --cleanup none --submit -vv".format(**options)
-    print(pegasus_plan_command)
 
     system_call(pegasus_plan_command, environment)
 

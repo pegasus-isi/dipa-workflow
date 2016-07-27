@@ -10,6 +10,8 @@ while [[ "$#" > 1 ]]; do case $1 in
     -h) show_help="True";;
     --mean) mean="$2";;
     --image) image="$2";;
+    --outimage) outimage="$2";;
+    --outaff) outaff="$2";;
     --smoption) smoption="$2";;
     --sepcoarse) sepcoarse="$2";;
     --initial) initial="True";;
@@ -20,7 +22,7 @@ done
 if [[ $show_help == "True" ]] ; then
   echo "Normalize_RigidWarp"
   echo "Usage: "
-  echo "    Normalize_RigidWarp.sh [options] --mean <FILE> --image <FILE> --smoption <STR> --sepcoarse <STR> [--initial]"
+  echo "    Normalize_RigidWarp.sh [options] --mean <FILE> --image <FILE> --outimage <FILE> --outaff <FILE> --smoption <STR> --sepcoarse <STR> [--initial]"
   exit 0
 fi
 
@@ -41,6 +43,11 @@ if [ $initial == "True" ] ; then
   bool="1"
 else:
   bool=""
+fi
 
-#First iteration
 ${DTITK_ROOT}/scripts/dti_rigid_reg ${mean} ${image} ${smoption} ${sepcoarse} ${sepcoarse} ${sepcoarse} 0.01 ${bool}
+
+#Output the files, named correctly.
+imagebasename="${image%%.*}"
+mv ${imagebasename}_aff.nii.gz ${outimage}
+mv ${imagebasename}.aff ${outaff}

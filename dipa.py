@@ -110,19 +110,9 @@ def create_workflow(options):
 
     dax = ADAG( "dipa" )
     try:
-        raw_matrix = pandas.read_csv(clean_path(options["InputFile"]))
+        matrix = pandas.read_csv(clean_path(options["InputFile"]))
     except:
         print("Could not find the input file specified here: "+ clean_path(options["InputFile"]))
-
-    for index, row in raw_matrix.iterrows():
-        try:
-            shutil.copyfile(row["SPD"], options["ProjectDir"]+"/input/"+"{0}_spd.nii.gz".format(row["ID"]))
-        except:
-            print("Either your input csv was ill-formatted, or some number of files do not exist.")
-            sys.exit(1)
-
-    matrix = raw_matrix.copy()
-    matrix["SPD"] = matrix["ID"].apply(lambda row: "{0}_spd.nii.gz".format(row))
 
     print("Adding normalization to workflow.")
     normalize_section = normalize(matrix, hierarchy=options["NormalizeHierarchy"],
@@ -135,6 +125,12 @@ def create_workflow(options):
                                           similarity_metric=options["SimilarityMetric"],
                                           species=options["Species"])
     dax = normalize_section.add_to_dax(dax)
+    try:
+        for index, mapping in normalize_section.mappings.iterrows():
+            shutil.copyfile(mapping["SOURCE"], options["ProjectDir"]+"/input/"+mapping["DESTINATION"])
+    except:
+        print("Either your input csv was ill-formatted, or some number of files do not exist.")
+        sys.exit(1)
     if options["Template"] != None:
         try:
             shutil.copyfile(options["Template"], options["ProjectDir"]+"/input/"+options["ProjectName"]+"_template_orig.nii.gz")

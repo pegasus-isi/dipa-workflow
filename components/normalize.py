@@ -11,7 +11,9 @@ class normalize(object):
     matrix is assumed to be a pandas dataframe. "hierarchy" is a list referencing headers in the matrix.
     """
     def __init__(self, matrix, hierarchy=["PROJECT", "ID"], name="Project", template=None, similarity_metric="NMI", species="Human", rigid=3, affine=3, diffeomorphic=6, transferflag=True):
-        self.matrix = matrix
+        self.name = name
+        self.matrix = matrix.copy()
+
         self.hierarchy = hierarchy
         if template != None:
             self.rigid = 1
@@ -30,7 +32,14 @@ class normalize(object):
                 self.hierarchy.append("ID")
             if "PROJECT" not in self.hierarchy:
                 self.hierarchy = ["PROJECT"] + self.hierarchy
-        self.name = name
+
+        #Rework the matrix file:
+        self.matrix["SPD_NEW"] = matrix.apply(lambda row: self.__get_unique_matrix_key__(row)+"_spd.nii.gz", axis=1)
+
+        self.mappings = pandas.DataFrame({"SOURCE":self.matrix["SPD"], "DESTINATION": self.matrix["SPD_NEW"]})
+        self.matrix["SPD"] = self.matrix["SPD_NEW"]
+        self.matrix.drop("SPD_NEW",1)
+
 
         if template == None:
             self.template = None
@@ -63,6 +72,13 @@ class normalize(object):
         except:
             print("The spreadsheet you supplied did not have columns for the hierarchy specified. Exiting.")
             sys.exit(1)
+
+    def __get_unique_matrix_key__(self, row):
+        values = []
+        for level in self.hierarchy:
+            if level != "PROJECT":
+                values.append(str(row[level]))
+        return "_".join(values)
 
     def __plan_tier__(self, matrix, hierarchies, dax):
 
@@ -338,6 +354,8 @@ class normalize_AffineWarpA(object):
         outputfiles = ["{0}_aff.nii.gz".format(inputbase), "{0}.aff".format(inputbase)]
         args = ["--mean", template_image,
                 "--image", inputfile,
+                "--outimage", "{0}_ai{1}_aff.nii.gz".format(inputbase, iteration),
+                "--outaff", "{0}_ai{1}.aff".format(inputbase, iteration),
                 "--smoption", smoption,
                 "--sepcoarse", sepcoarse]
         if iteration == 1:

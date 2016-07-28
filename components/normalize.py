@@ -333,7 +333,7 @@ class normalize_RigidMean(object):
             self.pegasus_job.uses(outputfile, link=Link.OUTPUT, transfer=transferflag)
 
 class normalize_AffineWarpA(object):
-    def __init__(self, template_tier, source_tier, template_id, source_id, iteration, smoption, sepcoarse, hierarchy, matrix, transferflag):
+    def __init__(self, template_tier, source_tier, template_id, source_id, iteration, smoption, sepcoarse, hierarchy, matrix, rigid, transferflag):
         self.job_id = "{0}-{1}_i{2}".format(source_tier, source_id, iteration)
         self.pegasus_job = Job(name="Normalize_AffineWarpA", namespace="dipa", id=self.job_id+"_Normalize_AffineWarpA")
         self.files = {}
@@ -346,20 +346,24 @@ class normalize_AffineWarpA(object):
 
         inputbase = inputfile.split(".")[0]
         if iteration == 1:
-            template_image = "{0}_initial_template.nii.gz".format(template_id)
+            template_image = "{0}_mean_rigid{1}.nii.gz".format(template_id, rigid)
+            previous_iter = ["{0}_ri{1}_aff.nii.gz".format(inputbase, rigid),
+                             "{0}_ri{1}.aff".format(inputbase, rigid)]
         else:
-            template_image = "{0}_mean_rigid{1}.nii.gz".format(template_id, iteration-1)
+            template_image = "{0}_mean_affine{1}.nii.gz".format(template_id, iteration-1)
+            previous_iter = ["{0}_ai{1}b_aff.nii.gz".format(inputbase, iteration),
+                             "{0}_ai{1}b.aff".format(inputbase, iteration)]
 
-        inputfiles = [inputfile, template_image]
-        outputfiles = ["{0}_aff.nii.gz".format(inputbase), "{0}.aff".format(inputbase)]
+        inputfiles = [inputfile, template_image] + previous_iter
+        outputfiles = ["{0}_ai{1}a_aff.nii.gz".format(inputbase, iteration),
+                       "{0}_ai{1}a.aff".format(inputbase, iteration)]
+
         args = ["--mean", template_image,
                 "--image", inputfile,
-                "--outimage", "{0}_ai{1}_aff.nii.gz".format(inputbase, iteration),
-                "--outaff", "{0}_ai{1}.aff".format(inputbase, iteration),
+                "--outimage", "{0}_ai{1}a_aff.nii.gz".format(inputbase, iteration),
+                "--outaff", "{0}_ai{1}a.aff".format(inputbase, iteration),
                 "--smoption", smoption,
                 "--sepcoarse", sepcoarse]
-        if iteration == 1:
-            args.append("--initial")
 
         for inputfile in inputfiles:
             self.pegasus_job.uses(inputfile, link=Link.INPUT)
@@ -374,9 +378,14 @@ class normalize_AffineMeanA(object):
         self.pegasus_job = Job(name="Normalize_AffineMeanA", namespace="dipa", id=self.job_id+"_Normalize_AffineMeanA")
         self.files = {}
 
-        args = ["--invlist", "{0}_inv_template_input.txt".format(template_id),
-                "--invmean", "{0}_mean_inv{1}.nii.gz".format(template_id, iteration),
-                "--invaff", "{0}_mean_inv{1}.aff".format(template_id, iteration)]
+        if iteration == 1:
+            template_image = "{0}_mean_rigid{1}.nii.gz".format(template_id, rigid_iterations)
+        else:
+            template_image = "{0}_mean_affine{1}.nii.gz".format(template_id, iteration-1)
+
+        args = ["--invlist", "{0}_inv_ai{1}_input.txt".format(template_id, iteration),
+                "--mean", template_image,
+                "--invaff", "{0}_inv{1}.aff".format(template_id, iteration)]
 
         self.pegasus_job.addArguments(*args)
 
@@ -388,16 +397,15 @@ class normalize_AffineMeanA(object):
                 inputfile_base = list(matrix[matrix[template_tier] == template_id][matrix[source_tier] == source_id]["SPD"])[0].split(".")[0]
             else:
                 inputfile_base = "{0}-{1}_template".format(source_tier, source_id)
-            aff_files.append(inputfile_base + ".aff")
+            aff_files.append(inputfile_base + "_ai{0}a.aff")
 
-        input_files = ["{0}_inv_template_input.txt".format(template_id)] + aff_files
+        input_files = ["{0}_inv_ai{1}_input.txt".format(template_id, iteration)] + aff_files
 
-        output_files = ["{0}_mean_inv{1}.nii.gz".format(template_id, iteration),
-                        "{0}_mean_inv{1}.aff".format(template_id, iteration)]
+        output_files = ["{0}_inv{1}.aff".format(template_id, iteration)]
 
         inv_template_input_text = "\n".join(aff_files)
 
-        self.files["{0}_inv_template_input.txt".format(template_id)] = inv_template_input_text
+        self.files["{0}_inv_ai{1}_input.txt".format(template_id, iteration)] = inv_template_input_text
 
         for inputfile in input_files:
             self.pegasus_job.uses(inputfile, link=Link.INPUT)
@@ -415,12 +423,13 @@ class normalize_AffineWarpB(object):
             inputfile = list(matrix[matrix[template_tier] == template_id][matrix[source_tier] == source_id]["SPD"])[0]
         else:
             inputfile = "{0}-{1}_template.nii.gz".format(source_tier, source_id)
-
         inputbase = inputfile.split(".")[0]
+
         if iteration == 1:
             template_image = "{0}_mean_rigid{1}.nii.gz".format(template_id, rigid_iterations)
         else:
             template_image = "{0}_mean_affine{1}.nii.gz".format(template_id, iteration-1)
+
 
         Input = ["{0}/Data/${{ID}}/Fit/DTI/${{ID}}_spd.nii.gz".format(config["ScriptSettings"]["DataDir"]),
                    "{0}/Data/${{ID}}/Normalize/${{ID}}_spd.aff".format(config["ScriptSettings"]["DataDir"]),
@@ -431,14 +440,17 @@ class normalize_AffineWarpB(object):
                   "{0}/Data/${{ID}}/Normalize/${{ID}}_spd.aff".format(config["ScriptSettings"]["DataDir"])],
 
 
-        inputfiles = [inputfile, "{0}.aff".format(inputbase), "{0}_aff.nii.gz".format(inputbase), template_image, "{0}_mean_inv{1}.aff".format(template_id, iteration)]
-        outputfiles = ["{0}_aff.nii.gz".format(inputbase), "{0}.aff".format(inputbase)]
+        inputfiles = [inputfile, template_image, "{0}_inv{1}.aff".format(template_id), inputbase+"_ai{0}a.aff".fornat(iteration)]
+        outputfiles = ["{0}_ai{1}b_aff.nii.gz".format(inputbase, iteration),
+                       "{0}_ai{1}b.aff".format(inputbase, iteration)]
+
         args = ["--mean", template_image,
                 "--image", inputfile,
                 "--smoption", smoption,
-                "--sepcoarse", sepcoarse]
-        if iteration == 1:
-            args.append("--initial")
+                "--sepcoarse", sepcoarse,
+                "--inaff", inputbase+"_ai{0}a.aff".fornat(iteration),
+                "--outaffimage", "{0}_ai{1}b_aff.nii.gz".format(inputbase, iteration),
+                "--outaff", "{0}_ai{1}b.aff".format(inputbase, iteration)]
 
         for inputfile in inputfiles:
             self.pegasus_job.uses(inputfile, link=Link.INPUT)
@@ -453,9 +465,10 @@ class normalize_AffineMeanB(object):
         self.pegasus_job = Job(name="Normalize_AffineMeanB", namespace="dipa", id=self.job_id+"_Normalize_AffineMeanB")
         self.files = {}
 
-        args = ["--invlist", "{0}_inv_template_input.txt".format(template_id),
-                "--invmean", "{0}_mean_inv{1}.nii.gz".format(template_id, iteration),
-                "--invaff", "{0}_mean_inv{1}.aff".format(template_id, iteration)]
+        args = ["--affinelist", "{0}_affine_i{1}_template_input.txt".format(template_id, iteration),
+                "--mean", "{0}_mean_affine{1}.nii.gz".format(template_id, iteration),
+                "--trace", "{0}_mean_affine{1}_tr.nii.gz".format(template_id, iteration),
+                "--mask", "{0}_mean_affine{1}_mask.nii.gz".format(template_id, iteration)]
 
         self.pegasus_job.addArguments(*args)
 
@@ -465,18 +478,19 @@ class normalize_AffineMeanB(object):
         for source_id in source_ids:
             if source_tier == hierarchy[-1]:
                 inputfile_base = list(matrix[matrix[template_tier] == template_id][matrix[source_tier] == source_id]["SPD"])[0].split(".")[0]
-                aff_files.append(inputfile_base + ".aff")
             else:
-                aff_files.append("{0}-{1}_template.aff".format(source_tier, source_id))
+                inputfile_base = "{0}-{1}_template".format(source_tier, source_id)
+            aff_files.append(inputfile_base + "_ai{0}b.aff")
 
-        input_files = ["{0}_inv_template_input.txt".format(template_id)] + aff_files
+        input_files = ["{0}_affine_i{1}_template_input.txt".format(template_id, iteration)] + aff_files
 
-        output_files = ["{0}_mean_inv{1}.nii.gz".format(template_id, iteration),
-                        "{0}_mean_inv{1}.aff".format(template_id, iteration)]
+        output_files = ["{0}_mean_affine{1}.nii.gz".format(template_id, iteration),
+                        "{0}_mean_affine{1}_tr.nii.gz".format(template_id, iteration),
+                        "{0}_mean_affine{1}_mask.nii.gz".format(template_id, iteration)]
 
-        inv_template_input_text = "\n".join(aff_files)
+        aff_template_input_text = "\n".join(aff_files)
 
-        self.files["{0}_inv_template_input.txt".format(template_id)] = inv_template_input_text
+        self.files["{0}_affine_i{1}_template_input.txt".format(template_id, iteration)] = aff_template_input_text
 
         for inputfile in input_files:
             self.pegasus_job.uses(inputfile, link=Link.INPUT)

@@ -9,6 +9,8 @@ while [[ "$#" > 1 ]]; do case $1 in
     -h) show_help="True";;
     --mean) mean="$2";;
     --image) image="$2";;
+    --outimage) outimage="$2";;
+    --outaff) outaff="$2";;
     --smoption) smoption="$2";;
     --sepcoarse) sepcoarse="$2";;
     *);;
@@ -37,3 +39,8 @@ source ${DTITK_ROOT}/scripts/dtitk_common.sh
 
 
 ${DTITK_ROOT}/scripts/dti_affine_reg ${mean} ${image} ${smoption} ${sepcoarse} ${sepcoarse} ${sepcoarse} 0.01 1
+
+#Output the files, named correctly.
+imagebasename="${image%%.*}"
+mv ${imagebasename}_aff.nii.gz ${outimage}
+mv ${imagebasename}.aff ${outaff}

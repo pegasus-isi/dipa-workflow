@@ -8,11 +8,9 @@ while [[ "$#" > 1 ]]; do case $1 in
     --help) show_help="True";;
     -h) show_help="True";;
     --affinelist) affine_list_file="$2";;
-    --newmean) new_mean_file="$2";;
-    --newtrace) new_tr_file="$2";;
-    --newmask) new_mask_file="$2";;
-    --previousmean) previous_mean_file="$2";;
-    --statictemplate) static="True";;
+    --mean) mean_file="$2";;
+    --trace) tr_file="$2";;
+    --mask) mask_file="$2";;
     *);;
   esac; shift
 done
@@ -37,12 +35,8 @@ fi
 #Source dtitk_common.sh
 source ${DTITK_ROOT}/scripts/dtitk_common.sh
 
-if [[ $static == "True" ]] ; then
-  cp ${previous_mean_file} ${new_mean_file}
-else
-  ${DTIK_ROOT}/bin/TVMean -in ${affine_list_file} -out ${new_mean_file}
-fi
+${DTIK_ROOT}/bin/TVMean -in ${affine_list_file} -out ${mean_file}
 
-${DTIK_ROOT}/bin/TVtool -tr -in ${new_mean_file} -out ${new_tr_file}
+${DTIK_ROOT}/bin/TVtool -tr -in ${mean_file} -out ${tr_file}
 
-${DTIK_ROOT}/bin/BinaryThresholdImageFilter ${new_tr_file} ${new_mask_file} 0 .01 100 1 0
+${DTIK_ROOT}/bin/BinaryThresholdImageFilter ${tr_file} ${mask_file} 0 .01 100 1 0

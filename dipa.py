@@ -63,7 +63,8 @@ __arg_mapping__ = {
 }
 
 #some constants. can be updated via command line options
-DEFAULT_INTERMEDIATE_FILES_TRANSFER_FLAG = True #whether intermediate files make it to the output site or not
+#DEFAULT_INTERMEDIATE_FILES_TRANSFER_FLAG = True #whether intermediate files make it to the output site or not
+#Replaced with --keep_files flag.
 
 
 pegasus_config = "pegasus-config --python-dump"
@@ -121,7 +122,7 @@ def create_workflow(options):
                                           rigid=int(options["RigidIterations"]),
                                           affine=int(options["AffineIterations"]),
                                           diffeomorphic=int(options["DiffeomorphicIterations"]),
-                                          transferflag=DEFAULT_INTERMEDIATE_FILES_TRANSFER_FLAG,
+                                          transferflag=options["KeepFiles"],
                                           similarity_metric=options["SimilarityMetric"],
                                           species=options["Species"])
     dax = normalize_section.add_to_dax(dax)

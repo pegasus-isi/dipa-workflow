@@ -29,8 +29,8 @@ of Wisconsin Madison.
 ## Example Workflows
 ### Normalization (Non-Hierarchical)
 This is an example of non-hierarchical normalization:
-![Non-Hierarchical Normalization](/doc/example_normalization.pdf)
+![Non-Hierarchical Normalization](/doc/example_normalization_nohierarchy.png)
 
 ### Registration
 This is an example of registration (always non-hierarchical):
-![Registration](/doc/example_registration.pdf)
+![Registration](/doc/example_registration.png)

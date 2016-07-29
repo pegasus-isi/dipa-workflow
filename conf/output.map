@@ -3,6 +3,7 @@
 (.*)template_(.*)\.txt  file://${ProjectDir}/outputs/Normalize/Parameters/[0] site="local" regex="true"
 (.*)_dimensions.csv  file://${ProjectDir}/outputs/Normalize/Parameters/[0] site="local" regex="true"
 (.*)_initial_template(.*)\.nii.gz file://${ProjectDir}/outputs/Normalize/Images/[0] site="local" regex="true"
+(.*)_template(.*)\.nii.gz file://${ProjectDir}/outputs/Normalize/Images/[0] site="local" regex="true"
 (.*)_mean(.*)\.nii.gz file://${ProjectDir}/outputs/Normalize/Images/[0] site="local" regex="true"
 (.*)_aff.nii.gz file://${ProjectDir}/outputs/Normalize/Images/[0] site="local" regex="true"
 (.*).aff file://${ProjectDir}/outputs/Normalize/Affine/[0] site="local" regex="true"

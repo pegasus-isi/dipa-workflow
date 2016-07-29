@@ -22,12 +22,15 @@ class normalize(object):
             #Override hierarchy in normalization. Register directly to the template.
             self.hierarchy = ["PROJECT", "ID"]
         else:
-            self.rigid = rigid
-            self.affine = affine
-            self.diffeomorphic = diffeomorphic
-            for setting in [self.rigid, self.affine, self.diffeomorphic]:
-                if setting == 0:
-                    setting = 1
+            self.rigid = int(rigid)
+            self.affine = int(affine)
+            self.diffeomorphic = int(diffeomorphic)
+            if self.rigid < 1:
+                self.rigid = 1
+            if self.affine < 1:
+                self.affine = 1
+            if self.diffeomorphic < 1:
+                self.diffeomorphic = 1
             if "ID" not in self.hierarchy:
                 self.hierarchy.append("ID")
             if "PROJECT" not in self.hierarchy:
@@ -108,11 +111,14 @@ class normalize(object):
             RigidWarp_Jobs = []
             #Individual Warp
             for source_id in source_ids:
-                rigidjob = normalize_RigidWarp(template_tier=template_tier, source_tier=source_tier, template_id=template_id, source_id=source_id, hierarchy=hierarchies, matrix=matrix, iteration=rigid_iteration, smoption=self.similarity_metric, sepcoarse=self.sep_coarse, template=self.template, transferflag=self.transferflag)
+                rigidjob = normalize_RigidWarp(template_tier=template_tier, source_tier=source_tier, template_id=template_id, source_id=source_id, hierarchy=hierarchies, matrix=matrix, iteration=rigid_iteration, smoption=self.similarity_metric, sepcoarse=self.sep_coarse, template=self.resampled_template, transferflag=self.transferflag)
                 self.files.update(rigidjob.files)
                 RigidWarp_Jobs.append(rigidjob)
                 dax.addJob(rigidjob.pegasus_job)
-                dax.depends(parent=createtemplatejob.pegasus_job, child=rigidjob.pegasus_job)
+                if rigid_iteration == 1:
+                    dax.depends(parent=createtemplatejob.pegasus_job, child=rigidjob.pegasus_job)
+                else:
+                    dax.depends(parent=rigidmeanjob.pegasus_job, child=rigidjob.pegasus_job)
 
             #Group Mean
             if self.template == None:
@@ -124,7 +130,44 @@ class normalize(object):
 
         #Affine
         for affine_iteration in range(1,self.affine+1):
-            pass
+            AffineWarpA_Jobs = []
+            AffineWarpB_Jobs = []
+            #Individual Warp, Part A
+            for index, source_id in enumerate(source_ids):
+                affinewarpajob = normalize_AffineWarpA(template_tier=template_tier, source_tier=source_tier, template_id=template_id, source_id=source_id, hierarchy=hierarchies, matrix=matrix, iteration=affine_iteration, template=self.resampled_template, smoption=self.similarity_metric, rigid=self.rigid, sepcoarse=self.sep_coarse, transferflag=self.transferflag)
+                AffineWarpA_Jobs.append(affinewarpajob)
+                dax.addJob(affinewarpajob.pegasus_job)
+                self.files.update(affinewarpajob.files)
+                if affine_iteration == 1:
+                    if self.template == None:
+                        dax.depends(parent=rigidmeanjob.pegasus_job, child=affinewarpajob.pegasus_job)
+                    else:
+                        dax.depends(parent=RigidWarp_Jobs[index].pegasus_job, child=affinewarpajob.pegasus_job)
+                else:
+                    dax.depends(parent=affinemeanbjob.pegasus_job, child=affinewarpajob.pegasus_job)
+
+            #Group Mean, Part A
+            affinemeanajob = normalize_AffineMeanA(template_tier=template_tier, source_tier=source_tier, template_id=template_id, hierarchy=hierarchies, matrix=matrix, iteration=affine_iteration, smoption=self.similarity_metric, template=self.resampled_template, rigid=self.rigid, transferflag=self.transferflag)
+            dax.addJob(affinemeanajob.pegasus_job)
+            self.files.update(affinemeanajob.files)
+            for AffineWarpA_Job in AffineWarpA_Jobs:
+                dax.depends(parent=AffineWarpA_Job.pegasus_job, child=affinemeanajob.pegasus_job)
+
+            #Individual Warp, Part B
+            for source_id in source_ids:
+                affinewarpbjob = normalize_AffineWarpB(template_tier=template_tier, source_tier=source_tier, template_id=template_id, source_id=source_id, hierarchy=hierarchies, matrix=matrix, iteration=affine_iteration, smoption=self.similarity_metric, sepcoarse=self.sep_coarse, template=self.resampled_template, rigid=self.rigid, transferflag=self.transferflag)
+                AffineWarpB_Jobs.append(affinewarpbjob)
+                dax.addJob(affinewarpbjob.pegasus_job)
+                self.files.update(affinewarpbjob.files)
+                dax.depends(parent=affinemeanajob.pegasus_job, child=affinewarpbjob.pegasus_job)
+
+            #Group Mean, Part B
+            affinemeanbjob = normalize_AffineMeanB(template_tier=template_tier, source_tier=source_tier, template_id=template_id, hierarchy=hierarchies, matrix=matrix, iteration=affine_iteration, smoption=self.similarity_metric, template=self.resampled_template, transferflag=self.transferflag)
+            dax.addJob(affinemeanbjob.pegasus_job)
+            self.files.update(affinemeanbjob.files)
+            for AffineWarpB_Job in AffineWarpB_Jobs:
+                dax.depends(parent=AffineWarpB_Job.pegasus_job, child=affinemeanbjob.pegasus_job)
+
         #Diffeomorphic
         for diffeo_iteration in range(1,self.diffeomorphic+1):
             pass
@@ -140,9 +183,9 @@ class normalize(object):
 
         #Will eventually return the last step in normalization for each tier
         if self.template == None:
-            return dax, [rigidmeanjob]
+            return dax, [affinemeanbjob]
         else:
-            return dax, RigidWarp_Jobs
+            return dax, AffineWarpB_Jobs
 
 
 
@@ -287,7 +330,7 @@ class normalize_RigidWarp(object):
                 "--smoption", smoption,
                 "--sepcoarse", sepcoarse]
         if iteration == 1:
-            args.append("--initial")
+            args.append("--initial True")
 
         for inputfile in inputfiles:
             self.pegasus_job.uses(inputfile, link=Link.INPUT)
@@ -313,11 +356,11 @@ class normalize_RigidMean(object):
         aff_files = []
         for source_id in source_ids:
             if source_tier == hierarchy[-1]:
-                inputfile_base = list(matrix[matrix[template_tier] == template_id][matrix[source_tier] == source_id]["SPD"])[0].split(".")[0]
+                inputbase = list(matrix[matrix[template_tier] == template_id][matrix[source_tier] == source_id]["SPD"])[0].split(".")[0]
 
             else:
-                inputfile_base = "{0}-{1}_template".format(source_tier, source_id)
-            aff_files.append(inputfile_base + "_ri{0}_aff.nii.gz".format(iteration))
+                inputbase = "{0}-{1}_template".format(source_tier, source_id)
+            aff_files.append(inputbase + "_ri{0}_aff.nii.gz".format(iteration))
 
         input_files = ["{0}_rigid_i{1}_template_input.txt".format(template_id, iteration)] + aff_files
 
@@ -333,7 +376,7 @@ class normalize_RigidMean(object):
             self.pegasus_job.uses(outputfile, link=Link.OUTPUT, transfer=transferflag)
 
 class normalize_AffineWarpA(object):
-    def __init__(self, template_tier, source_tier, template_id, source_id, iteration, smoption, sepcoarse, hierarchy, matrix, rigid, transferflag):
+    def __init__(self, template_tier, source_tier, template_id, source_id, iteration, smoption, sepcoarse, hierarchy, matrix, template, rigid, transferflag):
         self.job_id = "{0}-{1}_i{2}".format(source_tier, source_id, iteration)
         self.pegasus_job = Job(name="Normalize_AffineWarpA", namespace="dipa", id=self.job_id+"_Normalize_AffineWarpA")
         self.files = {}
@@ -351,8 +394,11 @@ class normalize_AffineWarpA(object):
                              "{0}_ri{1}.aff".format(inputbase, rigid)]
         else:
             template_image = "{0}_mean_affine{1}.nii.gz".format(template_id, iteration-1)
-            previous_iter = ["{0}_ai{1}b_aff.nii.gz".format(inputbase, iteration),
-                             "{0}_ai{1}b.aff".format(inputbase, iteration)]
+            previous_iter = ["{0}_ai{1}b_aff.nii.gz".format(inputbase, iteration-1),
+                             "{0}_ai{1}b.aff".format(inputbase, iteration-1)]
+
+        if template != None:
+            template_image = "{0}_template.nii.gz".format(template_id)
 
         inputfiles = [inputfile, template_image] + previous_iter
         outputfiles = ["{0}_ai{1}a_aff.nii.gz".format(inputbase, iteration),
@@ -373,17 +419,20 @@ class normalize_AffineWarpA(object):
         self.pegasus_job.addArguments(*args)
 
 class normalize_AffineMeanA(object):
-    def __init__(self, template_tier, source_tier, template_id, hierarchy, matrix, iteration, smoption, transferflag):
+    def __init__(self, template_tier, source_tier, template_id, hierarchy, matrix, iteration, rigid, smoption, template, transferflag):
         self.job_id = "{0}-{1}_i{2}".format(template_tier, template_id, iteration)
         self.pegasus_job = Job(name="Normalize_AffineMeanA", namespace="dipa", id=self.job_id+"_Normalize_AffineMeanA")
         self.files = {}
 
         if iteration == 1:
-            template_image = "{0}_mean_rigid{1}.nii.gz".format(template_id, rigid_iterations)
+            template_image = "{0}_mean_rigid{1}.nii.gz".format(template_id, rigid)
         else:
             template_image = "{0}_mean_affine{1}.nii.gz".format(template_id, iteration-1)
 
-        args = ["--invlist", "{0}_inv_ai{1}_input.txt".format(template_id, iteration),
+        if template != None:
+            template_image = "{0}_template.nii.gz".format(template_id)
+
+        args = ["--invlist", "{0}_inv_affine_i{1}_input.txt".format(template_id, iteration),
                 "--mean", template_image,
                 "--invaff", "{0}_inv{1}.aff".format(template_id, iteration)]
 
@@ -394,18 +443,18 @@ class normalize_AffineMeanA(object):
         aff_files = []
         for source_id in source_ids:
             if source_tier == hierarchy[-1]:
-                inputfile_base = list(matrix[matrix[template_tier] == template_id][matrix[source_tier] == source_id]["SPD"])[0].split(".")[0]
+                inputbase = list(matrix[matrix[template_tier] == template_id][matrix[source_tier] == source_id]["SPD"])[0].split(".")[0]
             else:
-                inputfile_base = "{0}-{1}_template".format(source_tier, source_id)
-            aff_files.append(inputfile_base + "_ai{0}a.aff")
+                inputbase = "{0}-{1}_template".format(source_tier, source_id)
+            aff_files.append(inputbase + "_ai{0}a.aff".format(iteration))
 
-        input_files = ["{0}_inv_ai{1}_input.txt".format(template_id, iteration)] + aff_files
+        input_files = ["{0}_inv_affine_i{1}_input.txt".format(template_id, iteration)] + aff_files
 
         output_files = ["{0}_inv{1}.aff".format(template_id, iteration)]
 
         inv_template_input_text = "\n".join(aff_files)
 
-        self.files["{0}_inv_ai{1}_input.txt".format(template_id, iteration)] = inv_template_input_text
+        self.files["{0}_inv_affine_i{1}_input.txt".format(template_id, iteration)] = inv_template_input_text
 
         for inputfile in input_files:
             self.pegasus_job.uses(inputfile, link=Link.INPUT)
@@ -413,42 +462,38 @@ class normalize_AffineMeanA(object):
             self.pegasus_job.uses(outputfile, link=Link.OUTPUT, transfer=transferflag)
 
 class normalize_AffineWarpB(object):
-    def __init__(self, template_tier, source_tier, template_id, source_id, iteration, smoption, sepcoarse, rigid_iteratons, hierarchy, matrix, transferflag):
+    def __init__(self, template_tier, source_tier, template_id, source_id, iteration, smoption, template, sepcoarse, rigid, hierarchy, matrix, transferflag):
         self.job_id = "{0}-{1}_i{2}".format(source_tier, source_id, iteration)
         self.pegasus_job = Job(name="Normalize_AffineWarpB", namespace="dipa", id=self.job_id+"_Normalize_AffineWarpB")
         self.files = {}
         #Check to see if this is the basic level of the normalization.
         #If so, use the SPD specified. Otherwise, input is the output of a previous step.
         if source_tier == hierarchy[-1]:
-            inputfile = list(matrix[matrix[template_tier] == template_id][matrix[source_tier] == source_id]["SPD"])[0]
+            inputbase = list(matrix[matrix[template_tier] == template_id][matrix[source_tier] == source_id]["SPD"])[0].split(".")[0]
         else:
-            inputfile = "{0}-{1}_template.nii.gz".format(source_tier, source_id)
-        inputbase = inputfile.split(".")[0]
+            inputbase = "{0}-{1}_template".format(source_tier, source_id)
+        inputfile = inputbase+".nii.gz"
 
-        if iteration == 1:
-            template_image = "{0}_mean_rigid{1}.nii.gz".format(template_id, rigid_iterations)
+        if template == None:
+            if iteration == 1:
+                template_image = "{0}_mean_rigid{1}.nii.gz".format(template_id, rigid)
+            else:
+                template_image = "{0}_mean_affine{1}.nii.gz".format(template_id, iteration-1)
         else:
-            template_image = "{0}_mean_affine{1}.nii.gz".format(template_id, iteration-1)
+            template_image = "{0}_template.nii.gz".format(template_id)
 
 
-        Input = ["{0}/Data/${{ID}}/Fit/DTI/${{ID}}_spd.nii.gz".format(config["ScriptSettings"]["DataDir"]),
-                   "{0}/Data/${{ID}}/Normalize/${{ID}}_spd.aff".format(config["ScriptSettings"]["DataDir"]),
-                   "{0}/Data/${{ID}}/Normalize/${{ID}}_spd_aff.nii.gz".format(config["ScriptSettings"]["DataDir"]),
-                   "{0}/Data/Project/Normalize/mean_affine{1}.nii.gz".format(config["ScriptSettings"]["DataDir"], iteration-1),
-                   "{0}/Data/Project/Normalize/mean_inv{1}.aff".format(config["ScriptSettings"]["DataDir"], iteration)],
-        Output = ["{0}/Data/${{ID}}/Normalize/${{ID}}_spd_aff.nii.gz".format(config["ScriptSettings"]["DataDir"]),
-                  "{0}/Data/${{ID}}/Normalize/${{ID}}_spd.aff".format(config["ScriptSettings"]["DataDir"])],
 
-
-        inputfiles = [inputfile, template_image, "{0}_inv{1}.aff".format(template_id), inputbase+"_ai{0}a.aff".fornat(iteration)]
+        inputfiles = [inputfile, template_image, "{0}_inv{1}.aff".format(template_id, iteration), inputbase+"_ai{0}a.aff".format(iteration)]
         outputfiles = ["{0}_ai{1}b_aff.nii.gz".format(inputbase, iteration),
                        "{0}_ai{1}b.aff".format(inputbase, iteration)]
 
         args = ["--mean", template_image,
+                "--invmean", "{0}_inv{1}.aff".format(template_id, iteration),
                 "--image", inputfile,
                 "--smoption", smoption,
                 "--sepcoarse", sepcoarse,
-                "--inaff", inputbase+"_ai{0}a.aff".fornat(iteration),
+                "--inaff", inputbase+"_ai{0}a.aff".format(iteration),
                 "--outaffimage", "{0}_ai{1}b_aff.nii.gz".format(inputbase, iteration),
                 "--outaff", "{0}_ai{1}b.aff".format(inputbase, iteration)]
 
@@ -460,37 +505,43 @@ class normalize_AffineWarpB(object):
         self.pegasus_job.addArguments(*args)
 
 class normalize_AffineMeanB(object):
-    def __init__(self, template_tier, source_tier, template_id, hierarchy, matrix, iteration, smoption, transferflag):
+    def __init__(self, template_tier, source_tier, template_id, hierarchy, matrix, iteration, smoption, template, transferflag):
         self.job_id = "{0}-{1}_i{2}".format(template_tier, template_id, iteration)
         self.pegasus_job = Job(name="Normalize_AffineMeanB", namespace="dipa", id=self.job_id+"_Normalize_AffineMeanB")
         self.files = {}
 
-        args = ["--affinelist", "{0}_affine_i{1}_template_input.txt".format(template_id, iteration),
-                "--mean", "{0}_mean_affine{1}.nii.gz".format(template_id, iteration),
-                "--trace", "{0}_mean_affine{1}_tr.nii.gz".format(template_id, iteration),
-                "--mask", "{0}_mean_affine{1}_mask.nii.gz".format(template_id, iteration)]
-
-        self.pegasus_job.addArguments(*args)
-
         source_ids = list(matrix[matrix[template_tier] == template_id][source_tier])
 
         aff_files = []
-        for source_id in source_ids:
-            if source_tier == hierarchy[-1]:
-                inputfile_base = list(matrix[matrix[template_tier] == template_id][matrix[source_tier] == source_id]["SPD"])[0].split(".")[0]
-            else:
-                inputfile_base = "{0}-{1}_template".format(source_tier, source_id)
-            aff_files.append(inputfile_base + "_ai{0}b.aff")
+        if template == None:
+            for source_id in source_ids:
+                if source_tier == hierarchy[-1]:
+                    inputbase = list(matrix[matrix[template_tier] == template_id][matrix[source_tier] == source_id]["SPD"])[0].split(".")[0]
+                else:
+                    inputbase = "{0}-{1}_template".format(source_tier, source_id)
+                aff_files.append(inputbase + "_ai{0}b_aff.nii.gz".format(iteration))
 
-        input_files = ["{0}_affine_i{1}_template_input.txt".format(template_id, iteration)] + aff_files
+            aff_template_input_text = "\n".join(aff_files)
+            self.files["{0}_affine_i{1}_template_input.txt".format(template_id, iteration)] = aff_template_input_text
 
-        output_files = ["{0}_mean_affine{1}.nii.gz".format(template_id, iteration),
-                        "{0}_mean_affine{1}_tr.nii.gz".format(template_id, iteration),
-                        "{0}_mean_affine{1}_mask.nii.gz".format(template_id, iteration)]
+        if template == None:
+            args = ["--affinelist", "{0}_affine_i{1}_template_input.txt".format(template_id, iteration),
+                    "--mean", "{0}_mean_affine{1}.nii.gz".format(template_id, iteration),
+                    "--trace", "{0}_mean_affine{1}_tr.nii.gz".format(template_id, iteration),
+                    "--mask", "{0}_mean_affine{1}_mask.nii.gz".format(template_id, iteration)]
+            input_files = ["{0}_affine_i{1}_template_input.txt".format(template_id, iteration)] + aff_files
+            output_files = ["{0}_mean_affine{1}.nii.gz".format(template_id, iteration),
+                            "{0}_mean_affine{1}_tr.nii.gz".format(template_id, iteration),
+                            "{0}_mean_affine{1}_mask.nii.gz".format(template_id, iteration)]
+        else:
+            args = ["--mean", "{0}_template.nii.gz".format(template_id),
+                    "--trace", "{0}_template_tr.nii.gz".format(template_id, iteration),
+                    "--mask", "{0}_template_mask.nii.gz".format(template_id, iteration),
+                    "--staticmean", "True"]
+            input_files = ["{0}_template.nii.gz".format(template_id)]
+            output_files = ["{0}_template_tr.nii.gz".format(template_id, iteration), "{0}_template_mask.nii.gz".format(template_id, iteration)]
 
-        aff_template_input_text = "\n".join(aff_files)
-
-        self.files["{0}_affine_i{1}_template_input.txt".format(template_id, iteration)] = aff_template_input_text
+        self.pegasus_job.addArguments(*args)
 
         for inputfile in input_files:
             self.pegasus_job.uses(inputfile, link=Link.INPUT)

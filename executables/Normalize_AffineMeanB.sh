@@ -1,7 +1,7 @@
-#!/bin/bash
+#!/bin/bash -e
 
 #Defaults:
-smoption="NMI"
+static="False"
 
 #Accept Arguments
 while [[ "$#" > 1 ]]; do case $1 in
@@ -11,14 +11,15 @@ while [[ "$#" > 1 ]]; do case $1 in
     --mean) mean_file="$2";;
     --trace) tr_file="$2";;
     --mask) mask_file="$2";;
+    --staticmean) static="True";;
     *);;
   esac; shift
 done
 
-if [[ $show_help == "True" ]] ; then
+if [[ "${show_help}" == "True" ]] ; then
   echo "Normalize_AffineMeanB"
   echo "Usage: "
-  echo "    Normalize_AffineMeanB.sh [options] --affinelist <FILE> --newmean <FILE> --newtrace <FILE> --newmask <FILE> --previousmean <FILE> [--statictemplate]"
+  echo "    Normalize_AffineMeanB.sh [options] --affinelist <FILE> --mean <FILE> --trace <FILE> --mask <FILE> [--staticmean]"
   exit 0
 fi
 
@@ -35,8 +36,12 @@ fi
 #Source dtitk_common.sh
 source ${DTITK_ROOT}/scripts/dtitk_common.sh
 
-${DTIK_ROOT}/bin/TVMean -in ${affine_list_file} -out ${mean_file}
+if [[ ${static} == "False" ]] ; then
 
-${DTIK_ROOT}/bin/TVtool -tr -in ${mean_file} -out ${tr_file}
+  ${DTITK_ROOT}/bin/TVMean -in ${affine_list_file} -out ${mean_file}
 
-${DTIK_ROOT}/bin/BinaryThresholdImageFilter ${tr_file} ${mask_file} 0 .01 100 1 0
+fi
+
+${DTITK_ROOT}/bin/TVtool -tr -in ${mean_file} -out ${tr_file}
+
+${DTITK_ROOT}/bin/BinaryThresholdImageFilter ${tr_file} ${mask_file} 0 .01 100 1 0

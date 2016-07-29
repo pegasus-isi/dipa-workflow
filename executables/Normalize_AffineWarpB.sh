@@ -36,6 +36,6 @@ fi
 #Source dtitk_common.sh
 source ${DTITK_ROOT}/scripts/dtitk_common.sh
 
-${DTITK_ROOT}/DTI-TK/bin/affine3Dtool -in ${inaff} -compose ${invmean} -out ${outaff}
+${DTITK_ROOT}/bin/affine3Dtool -in ${inaff} -compose ${invmean} -out ${outaff}
 
-${DTITK_ROOT}/DTI-TK/bin/affineSymTensor3DVolume -in ${image} -trans ${outaff} -target ${mean} -out ${outaffimage}
+${DTITK_ROOT}/bin/affineSymTensor3DVolume -in ${image} -trans ${outaff} -target ${mean} -out ${outaffimage}

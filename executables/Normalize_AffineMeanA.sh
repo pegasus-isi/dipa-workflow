@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 
 #Defaults:
 
@@ -16,7 +16,7 @@ done
 if [[ $show_help == "True" ]] ; then
   echo "Normalize_AffineMeanA"
   echo "Usage: "
-  echo "    Normalize_AffineMeanA.sh [options] --invlist) <FILE> --mean <FILE> --invaff <FILE>"
+  echo "    Normalize_AffineMeanA.sh [options] --invlist <FILE> --mean <FILE> --invaff <FILE>"
   exit 0
 fi
 
@@ -34,4 +34,4 @@ fi
 source ${DTITK_ROOT}/scripts/dtitk_common.sh
 
 
-${DTIK_ROOT}/bin/affine3DShapeAverage ${inv_list_file} ${mean_file} ${inv_aff_file} 1
+${DTITK_ROOT}/bin/affine3DShapeAverage ${inv_list_file} ${mean_file} ${inv_aff_file} 1

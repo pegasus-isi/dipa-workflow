@@ -41,7 +41,7 @@ source ${DTITK_ROOT}/scripts/dtitk_common.sh
 
 if [ $initial == "True" ] ; then
   bool="1"
-else:
+else
   bool=""
 fi
 

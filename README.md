@@ -25,3 +25,12 @@ of Wisconsin Madison.
 - To modify DIPA for your site:
   * Update the conf/site_setup.sh script to suit your server configuration. Install any missing dependencies referenced there.
   * Update the conf/sites.xml file to suit your server configuration and/or destination.
+
+## Example Workflows
+### Normalization (Non-Hierarchical)
+This is an example of non-hierarchical normalization:
+![Non-Hierarchical Normalization](/doc/example_normalization.pdf)
+
+### Registration
+This is an example of registration (always non-hierarchical):
+![Registration](/doc/example_registration.pdf)

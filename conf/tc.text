@@ -116,6 +116,44 @@ tr dipa::Normalize_AffineMeanB{
     }
 }
 
+tr dipa::Normalize_AffineWarpA{
+    site waisman {
+        pfn "${EXECUTABLE_DIR}/Normalize_AffineWarpA.sh"
+        arch "x86_64"
+        os "LINUX"
+        type "INSTALLED"
+
+	#matches condor.request_cpus
+	profile pegasus "cores" "1"
+	profile pegasus "memory" "512"
+	profile condor  "request_disk" "2"
+
+	# environment variables that the scripts require
+	profile env "DTITK_ROOT" "${DTITK_ROOT}"
+	profile env "EXECUTABLE_DIR" "${EXECUTABLE_DIR}"
+
+    }
+}
+
+tr dipa::Normalize_AffineWarpB{
+    site waisman {
+        pfn "${EXECUTABLE_DIR}/Normalize_AffineWarpB.sh"
+        arch "x86_64"
+        os "LINUX"
+        type "INSTALLED"
+
+	#matches condor.request_cpus
+	profile pegasus "cores" "1"
+	profile pegasus "memory" "512"
+	profile condor  "request_disk" "2"
+
+	# environment variables that the scripts require
+	profile env "DTITK_ROOT" "${DTITK_ROOT}"
+	profile env "EXECUTABLE_DIR" "${EXECUTABLE_DIR}"
+
+    }
+}
+
 tr dipa::Normalize_DiffeomorphicMean{
     site waisman {
         pfn "${EXECUTABLE_DIR}/Normalize_DiffeomorphicMean.sh"

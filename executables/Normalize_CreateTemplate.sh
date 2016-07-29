@@ -32,15 +32,6 @@ if [[ $show_help == "True" ]] ; then
   exit 0
 fi
 
-echo $lookup_file
-echo $template_inputs_file
-echo $resample_bool_file
-echo $vsize_file
-echo $iso_vsize_file
-echo $dim_file
-echo $orig_template_file
-echo $existing_template_file
-
 #Environmental variable checking
 if [ x${DTITK_ROOT} == x ] ; then
     echo "DTITK_ROOT is not set "

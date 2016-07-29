@@ -172,6 +172,8 @@ def main():
 
     options["ProjectDir"] = os.path.abspath(options["ProjectDir"])
     options["DaxFile"] = options["ProjectDir"]+"/conf/master.dax"
+    options["DotFile"] = options["ProjectDir"]+"/conf/master.dot"
+    options["PDFFile"] = options["ProjectDir"]+"/conf/master.pdf"
     options["DipaDir"] = os.path.dirname(os.path.realpath(__file__))
     environment = dict(os.environ)
     jsonsettings = read_json(clean_path(options["DipaDir"]+"/conf/site_setup.json"))
@@ -206,8 +208,11 @@ def main():
     os.chdir(options["ProjectDir"])
     print("Submitting the workflow")
     pegasus_plan_command = "pegasus-plan --conf {ProjectDir}/conf/pegasusrc --sites {Site} --input-dir {ProjectDir}/input --output-site local --dir {ProjectDir}/working --relative-submit-dir ./condorsubmit --dax {DaxFile} --force --cleanup none --submit -vv".format(**options)
-
+    pegasus_graphviz_command = "pegasus-graphviz {DaxFile} -o {DotFile} -s -l id -f".format(**options)
+    dot_command = "dot -Tpdf {DotFile} -o {PDFFile}".format(**options)
     system_call(pegasus_plan_command, environment)
+    system_call(pegasus_graphviz_command, environment)
+    system_call(dot_command, environment)
 
 if __name__ == "__main__":
     main()

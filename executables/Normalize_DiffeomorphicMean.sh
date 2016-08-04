@@ -1,7 +1,6 @@
 #!/bin/bash -e
 
 #Defaults:
-smoption="NMI"
 
 #Accept Arguments
 while [[ "$#" > 1 ]]; do case $1 in
@@ -9,10 +8,9 @@ while [[ "$#" > 1 ]]; do case $1 in
     -h) show_help="True";;
     --diffeolist) diffeo_list_file="$2";;
     --dflist) df_list_file="$2";;
-    --newmean) new_mean_file="$2";;
-    --dfmean) new_dfmean_file="$2";;
-    --previousmean) previous_mean_file="$2";;
-    --statictemplate) static="True";;
+    --mean) mean_file="$2";;
+    --dfmean) dfmean_file="$2";;
+    --invdfmean) inv_dfmean_file="$2";;
     *);;
   esac; shift
 done
@@ -20,7 +18,7 @@ done
 if [[ $show_help == "True" ]] ; then
   echo "Normalize_DiffeomorphicMean"
   echo "Usage: "
-  echo "    Normalize_DiffeomorphicMean.sh [options] --diffeolist <FILE> --dflist <FILE> --newmean <FILE> --dfmean <FILE> [--statictemplate --previousmean <FILE>]"
+  echo "    Normalize_DiffeomorphicMean.sh [options] --diffeolist <FILE> --dflist <FILE> --mean <FILE> --dfmean <FILE> --invdfmean <FILE>"
   exit 0
 fi
 
@@ -37,16 +35,7 @@ fi
 #Source dtitk_common.sh
 source ${DTITK_ROOT}/scripts/dtitk_common.sh
 
-if [[ $static == "True" ]] ; then
-  cp ${previous_mean_file} ${new_mean_file}
-else
-  ${DTIK_ROOT}/bin/TVMean -in ${diffeo_list_file} -out ${new_mean_file}
-fi
-
-${DTIK_ROOT}/bin/VVMean -in ${df_list_file} -out ${new_dfmean_file}
-
-
-${DTIK_ROOT}/bin/dfToInverse -in ${new_dfmean_file} -out ${mean_df_inv}
-
-
-${DTIK_ROOT}/bin/deformationSymTensor3DVolume -in ${new_mean_file} -out ${new_mean_file} -trans ${mean_df_inv}
+${DTITK_ROOT}/bin/TVMean -in ${diffeo_list_file} -out ${mean_file}
+${DTITK_ROOT}/bin/VVMean -in ${df_list_file} -out ${dfmean_file}
+${DTITK_ROOT}/bin/dfToInverse -in ${dfmean_file} -out ${inv_dfmean_file}
+${DTITK_ROOT}/bin/deformationSymTensor3DVolume -in ${mean_file} -out ${mean_file} -trans ${inv_dfmean_file}

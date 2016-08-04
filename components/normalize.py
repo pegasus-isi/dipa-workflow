@@ -170,7 +170,25 @@ class normalize(object):
 
         #Diffeomorphic
         for diffeo_iteration in range(1,self.diffeomorphic+1):
-            pass
+            DiffeoWarp_Jobs = []
+            #Individual Warp
+            for source_id in source_ids:
+                diffeowarpjob = normalize_DiffeomorphicWarp(template_tier=template_tier, source_tier=source_tier, template_id=template_id, source_id=source_id, hierarchy=hierarchies, matrix=matrix, iteration=diffeo_iteration, template=self.resampled_template, affine=self.affine, transferflag=self.transferflag)
+                dax.addJob(diffeowarpjob.pegasus_job)
+                DiffeoWarp_Jobs.append(diffeowarpjob)
+                self.files.update(diffeowarpjob.files)
+                if diffeo_iteration == 1:
+                    dax.depends(parent=affinemeanbjob.pegasus_job, child=diffeowarpjob.pegasus_job)
+                else:
+                    dax.depends(parent=diffeomeanjob.pegasus_job, child=diffeowarpjob.pegasus_job)
+
+            #Group Mean
+            if self.template == None:
+                diffeomeanjob = normalize_DiffeomorphicMean(template_tier=template_tier, source_tier=source_tier, template_id=template_id, hierarchy=hierarchies, matrix=matrix, iteration=diffeo_iteration, transferflag=self.transferflag)
+                dax.addJob(diffeomeanjob.pegasus_job)
+                self.files.update(diffeomeanjob.files)
+                for DiffeoWarp_Job in DiffeoWarp_Jobs:
+                    dax.depends(parent=DiffeoWarp_Job.pegasus_job, child=diffeomeanjob.pegasus_job)
 
         #Possibly go deeper
         if len(hierarchies) > 2:
@@ -183,9 +201,9 @@ class normalize(object):
 
         #Will eventually return the last step in normalization for each tier
         if self.template == None:
-            return dax, [affinemeanbjob]
+            return dax, [diffeomeanjob]
         else:
-            return dax, AffineWarpB_Jobs
+            return dax, DiffeoWarp_Jobs
 
 
 
@@ -542,6 +560,188 @@ class normalize_AffineMeanB(object):
             output_files = ["{0}_template_tr.nii.gz".format(template_id, iteration), "{0}_template_mask.nii.gz".format(template_id, iteration)]
 
         self.pegasus_job.addArguments(*args)
+
+        for inputfile in input_files:
+            self.pegasus_job.uses(inputfile, link=Link.INPUT)
+        for outputfile in output_files:
+            self.pegasus_job.uses(outputfile, link=Link.OUTPUT, transfer=transferflag)
+
+class normalize_DiffeomorphicWarp(object):
+    def __init__(self, template_tier, source_tier, template_id, source_id, iteration, affine, hierarchy, matrix, transferflag, template=None):
+        self.job_id = "{0}-{1}_i{2}".format(source_tier, source_id, iteration)
+        self.pegasus_job = Job(name="Normalize_DiffeomorphicWarp", namespace="dipa", id=self.job_id+"_Normalize_DiffeomorphicWarp")
+        self.files = {}
+        #Check to see if this is the basic level of the normalization.
+        #If so, use the SPD specified. Otherwise, input is the output of a previous step.
+        if source_tier == hierarchy[-1]:
+            inputbase = list(matrix[matrix[template_tier] == template_id][matrix[source_tier] == source_id]["SPD"])[0].split(".")[0]
+        else:
+            inputbase = "{0}-{1}_template".format(source_tier, source_id)
+        inputfile = inputbase+"_ai{0}b_aff.nii.gz".format(affine)
+
+        if iteration == 1 and template == None:
+            template_image = "{0}_mean_affine{1}.nii.gz".format(template_id, affine)
+            template_mask_image = "{0}_mean_affine{1}_mask.nii.gz".format(template_id, affine)
+        elif template != None:
+            template_image = "{0}_template.nii.gz".format(template_id)
+            template_mask_image = "{0}_template_mask.nii.gz".format(template_id)
+        else:
+            template_image = "{0}_mean_diffeomorphic{1}.nii.gz".format(template_id, iteration-1)
+            template_mask_image = "{0}_mean_affine{1}_mask.nii.gz".format(template_id, affine)
+
+        inputfiles = [inputfile, template_image]
+        out_image = "{0}_di{1}.nii.gz".format(inputbase, iteration)
+        out_df = "{0}_di{1}.df.nii.gz".format(inputbase, iteration)
+        outputfiles = [out_image, out_df]
+        args = ["--mean", template_image,
+                "--image", inputfile,
+                "--mask", template_mask_image,
+                "--outimage", out_image,
+                "--outdf", out_df,
+                "--iterations", str(iteration)]
+
+        for inputfile in inputfiles:
+            self.pegasus_job.uses(inputfile, link=Link.INPUT)
+        for outputfile in outputfiles:
+            self.pegasus_job.uses(outputfile, link=Link.OUTPUT, transfer=transferflag)
+
+        self.pegasus_job.addArguments(*args)
+
+class normalize_DiffeomorphicMean(object):
+    def __init__(self, template_tier, source_tier, template_id, hierarchy, matrix, iteration, transferflag):
+        self.job_id = "{0}-{1}_i{2}".format(template_tier, template_id, iteration)
+        self.pegasus_job = Job(name="Normalize_DiffeomorphicMean", namespace="dipa", id=self.job_id+"_Normalize_DiffeomorphicMean")
+        self.files = {}
+
+        template_image = "{0}_mean_diffeomorphic{1}.nii.gz".format(template_id, iteration)
+        df_image = "{0}_mean_df{1}.nii.gz".format(template_id, iteration)
+        invdf_image = "{0}_inv_df{1}.nii.gz".format(template_id, iteration)
+
+
+        diffeo_input_list_file = "{0}_diffeomorphic_i{1}_template_input.txt".format(template_id, iteration)
+        df_input_list_file = "{0}_diffeomorphic_i{1}_df_input.txt".format(template_id, iteration)
+
+        args = ["--diffeolist", diffeo_input_list_file,
+                "--dflist", df_input_list_file,
+                "--mean", template_image,
+                "--dfmean", df_image,
+                "--invdfmean", invdf_image]
+
+        self.pegasus_job.addArguments(*args)
+
+        source_ids = list(matrix[matrix[template_tier] == template_id][source_tier])
+
+        diffeo_files = []
+        df_files = []
+        for source_id in source_ids:
+            if source_tier == hierarchy[-1]:
+                inputbase = list(matrix[matrix[template_tier] == template_id][matrix[source_tier] == source_id]["SPD"])[0].split(".")[0]
+
+            else:
+                inputbase = "{0}-{1}_template".format(source_tier, source_id)
+            diffeo_files.append("{0}_di{1}.nii.gz".format(inputbase, iteration))
+            df_files.append("{0}_di{1}.df.nii.gz".format(inputbase, iteration))
+
+        input_files = [diffeo_input_list_file, df_input_list_file] + diffeo_files + df_files
+
+        output_files = [template_image, df_image, invdf_image]
+
+        diffeo_input_text = "\n".join(diffeo_files)
+        df_input_text = "\n".join(df_files)
+
+        self.files[diffeo_input_list_file] = diffeo_input_text
+        self.files[df_input_list_file] = df_input_text
+
+        for inputfile in input_files:
+            self.pegasus_job.uses(inputfile, link=Link.INPUT)
+        for outputfile in output_files:
+            self.pegasus_job.uses(outputfile, link=Link.OUTPUT, transfer=transferflag)
+
+class normalize_ComposeWarp(object):
+    def __init__(self, template_tier, source_tier, template_id, source_id, iteration, affine, hierarchy, matrix, transferflag, template=None):
+        self.job_id = "{0}-{1}_i{2}".format(source_tier, source_id, iteration)
+        self.pegasus_job = Job(name="Normalize_DiffeomorphicWarp", namespace="dipa", id=self.job_id+"_Normalize_DiffeomorphicWarp")
+        self.files = {}
+        #Check to see if this is the basic level of the normalization.
+        #If so, use the SPD specified. Otherwise, input is the output of a previous step.
+        if source_tier == hierarchy[-1]:
+            inputbase = list(matrix[matrix[template_tier] == template_id][matrix[source_tier] == source_id]["SPD"])[0].split(".")[0]
+        else:
+            inputbase = "{0}-{1}_template".format(source_tier, source_id)
+        inputfile = inputbase+"_ai{0}b_aff.nii.gz".format(affine)
+
+        if iteration == 1 and template == None:
+            template_image = "{0}_mean_affine{1}.nii.gz".format(template_id, affine)
+            template_mask_image = "{0}_mean_affine{1}_mask.nii.gz".format(template_id, affine)
+        elif template != None:
+            template_image = "{0}_template.nii.gz".format(template_id)
+            template_mask_image = "{0}_template_mask.nii.gz".format(template_id)
+        else:
+            template_image = "{0}_mean_diffeomorphic{1}.nii.gz".format(template_id, iteration-1)
+            template_mask_image = "{0}_mean_affine{1}_mask.nii.gz".format(template_id, affine)
+
+        inputfiles = [inputfile, template_image]
+        out_image = "{0}_di{1}.nii.gz".format(inputbase, iteration)
+        out_df = "{0}_di{1}.df.nii.gz".format(inputbase, iteration)
+        outputfiles = [out_image, out_df]
+        args = ["--mean", template_image,
+                "--image", inputfile,
+                "--mask", template_mask_image,
+                "--outimage", out_image,
+                "--outdf", out_df,
+                "--iterations", str(iteration)]
+
+        for inputfile in inputfiles:
+            self.pegasus_job.uses(inputfile, link=Link.INPUT)
+        for outputfile in outputfiles:
+            self.pegasus_job.uses(outputfile, link=Link.OUTPUT, transfer=transferflag)
+
+        self.pegasus_job.addArguments(*args)
+
+class normalize_ComposeMean(object):
+    def __init__(self, template_tier, source_tier, template_id, hierarchy, matrix, iteration, transferflag):
+        self.job_id = "{0}-{1}_i{2}".format(template_tier, template_id, iteration)
+        self.pegasus_job = Job(name="Normalize_DiffeomorphicMean", namespace="dipa", id=self.job_id+"_Normalize_DiffeomorphicMean")
+        self.files = {}
+
+        template_image = "{0}_mean_diffeomorphic{1}.nii.gz".format(template_id, iteration)
+        df_image = "{0}_mean_df{1}.nii.gz".format(template_id, iteration)
+        invdf_image = "{0}_inv_df{1}.nii.gz".format(template_id, iteration)
+
+
+        diffeo_input_list_file = "{0}_diffeomorphic_i{1}_template_input.txt".format(template_id, iteration)
+        df_input_list_file = "{0}_diffeomorphic_i{1}_df_input.txt".format(template_id, iteration)
+
+        args = ["--diffeolist", diffeo_input_list_file,
+                "--dflist", df_input_list_file,
+                "--mean", template_image,
+                "--dfmean", df_image,
+                "--invdfmean", invdf_image]
+
+        self.pegasus_job.addArguments(*args)
+
+        source_ids = list(matrix[matrix[template_tier] == template_id][source_tier])
+
+        diffeo_files = []
+        df_files = []
+        for source_id in source_ids:
+            if source_tier == hierarchy[-1]:
+                inputbase = list(matrix[matrix[template_tier] == template_id][matrix[source_tier] == source_id]["SPD"])[0].split(".")[0]
+
+            else:
+                inputbase = "{0}-{1}_template".format(source_tier, source_id)
+            diffeo_files.append("{0}_di{1}.nii.gz".format(inputbase, iteration))
+            df_files.append("{0}_di{1}.df.nii.gz".format(inputbase, iteration))
+
+        input_files = [diffeo_input_list_file, df_input_list_file] + diffeo_files + df_files
+
+        output_files = [template_image, df_image, invdf_image]
+
+        diffeo_input_text = "\n".join(diffeo_files)
+        df_input_text = "\n".join(df_files)
+
+        self.files[diffeo_input_list_file] = diffeo_input_text
+        self.files[df_input_list_file] = df_input_text
 
         for inputfile in input_files:
             self.pegasus_job.uses(inputfile, link=Link.INPUT)

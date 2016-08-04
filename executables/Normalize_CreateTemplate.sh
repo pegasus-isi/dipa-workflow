@@ -50,7 +50,7 @@ ${EXECUTABLE_DIR}/settemplatedim.py --inputfile ${lookup_file} --out_dim ${dim_f
 
 resample=`cat ${resample_bool_file}`
 
-if [ "${existing_template_file}" == "None" ] ; then
+if [[ "${existing_template_file}" == "None" ]] ; then
 
   ${DTITK_ROOT}/bin/TVMean -in ${template_inputs_file} -out ${orig_template_file}
 

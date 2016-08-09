@@ -76,6 +76,9 @@ class normalize(object):
             print("The spreadsheet you supplied did not have columns for the hierarchy specified. Exiting.")
             sys.exit(1)
 
+        self.initial_steps = []
+        self.final_steps = []
+
     def __get_unique_matrix_key__(self, row):
         values = []
         for level in self.hierarchy:
@@ -98,6 +101,9 @@ class normalize(object):
             self.files.update(imagedimjob.files)
             ImageDim_Jobs.append(imagedimjob)
             dax.addJob(imagedimjob.pegasus_job)
+            if source_tier == hierarchy[-1]:
+                #Base Tier, add to self.initial_steps
+                self.initial_steps.append(imagedimjob)
 
         #CreateTemplate
         createtemplatejob = normalize_CreateTemplate(template_tier=template_tier, source_tier=source_tier, template_id=template_id, hierarchy=hierarchies, matrix=matrix, template=self.resampled_template, transferflag=self.transferflag)
@@ -228,9 +234,12 @@ class normalize(object):
                 ComposeFullWarp_Jobs.append(composefullwarpjob)
                 dax.addJob(composefullwarpjob.pegasus_job)
                 dax.depends(parent=composemeanjob.pegasus_job, child=composefullwarpjob.pegasus_job)
+            self.final_steps = ComposeFullWarp_Jobs
             return dax, ComposeFullWarp_Jobs
         else:
             #Return the last step in normalization for each tier (ComposeMean)
+            if initial == True:
+                self.final_steps = [composemeanjob]
             return dax, [composemeanjob]
 
 

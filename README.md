@@ -27,10 +27,15 @@ of Wisconsin Madison.
   * Update the conf/sites.xml file to suit your server configuration and/or destination.
 
 ## Example Workflows
-### Normalization (Non-Hierarchical)
-This is an example of non-hierarchical normalization:
-![Non-Hierarchical Normalization](/doc/example_normalization_nohierarchy.png)
 
 ### Registration
 This is an example of registration (always non-hierarchical):
 ![Registration](/doc/example_registration.png)
+
+### Normalization (Non-Hierarchical)
+This is an example of non-hierarchical normalization:
+![Non-Hierarchical Normalization](/doc/example_normalization_nohierarchy.png)
+
+### Normalization (Hierarchical)
+This is an example of non-hierarchical normalization (3 groups of 2):
+![Hierarchical Normalization](/doc/example_normalization_hierarchy.png)

@@ -10,7 +10,7 @@ while [[ "$#" > 1 ]]; do case $1 in
     --mean) mean="$2";;
     --aff) aff_file="$2";;
     --df) df_file="$2";;
-    --vsize) vsizefile="$2";;
+    --isovsize) isovsizefile="$2";;
     --warped) warped="$2";;
     --isowarped) isowarped="$2";;
     --warp) warp="$2";;
@@ -22,7 +22,7 @@ done
 if [[ $show_help == "True" ]] ; then
   echo "Normalize_ComposeWarp"
   echo "Usage: "
-  echo "    Normalize_ComposeWarp.sh [options] --image <FILE> --mean <FILE> --aff <FILE> --df <FILE> --vsize <FILE> --warped <FILE> --isowarped <FILE> --warp <FILE> --invwarp <FILE>"
+  echo "    Normalize_ComposeWarp.sh [options] --image <FILE> --mean <FILE> --aff <FILE> --df <FILE> --isovsize <FILE> --warped <FILE> --isowarped <FILE> --warp <FILE> --invwarp <FILE>"
   exit 0
 fi
 
@@ -46,5 +46,6 @@ ${DTITK_ROOT}/bin/dfRightComposeAffine -aff ${aff_file} -df ${df_file} -out ${wa
 ${DTITK_ROOT}/bin/affine3Dtool -in ${aff_file} -invert -out ${aff_inv}
 ${DTITK_ROOT}/bin/dfToInverse -in ${df_file} -out ${df_inv}
 ${DTITK_ROOT}/bin/dfLeftComposeAffine -df ${df_inv} -aff ${aff_inv} -out ${invwarp}
+
 ${DTITK_ROOT}/bin/deformationSymTensor3DVolume -in ${image} -out ${warped} -trans ${warp} -target ${mean}
-${DTITK_ROOT}/bin/deformationSymTensor3DVolume -in ${image} -out ${isowarped} -trans ${warp} -target ${mean} -vsize `cat ${vsizefile}`
+${DTITK_ROOT}/bin/deformationSymTensor3DVolume -in ${image} -out ${isowarped} -trans ${warp} -target ${mean} -vsize `cat ${isovsizefile}`

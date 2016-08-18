@@ -57,8 +57,8 @@ class normalize(object):
         self.transferflag = transferflag
 
         sep_lookup = {
-        "HUMAN":"4",
-        "MONKEY":"2",
+        "HUMAN":"4.0",
+        "MONKEY":"2.0",
         "RAT":"0.4"
         }
         try:
@@ -101,7 +101,7 @@ class normalize(object):
             self.files.update(imagedimjob.files)
             ImageDim_Jobs.append(imagedimjob)
             dax.addJob(imagedimjob.pegasus_job)
-            if source_tier == hierarchy[-1]:
+            if source_tier == hierarchies[-1]:
                 #Base Tier, add to self.initial_steps
                 self.initial_steps.append(imagedimjob)
 
@@ -333,7 +333,7 @@ class normalize_CreateTemplate(object):
                 spd_inputs.append("{0}-{1}_template.nii.gz".format(source_tier, source_id))
 
         if template == None:
-            initial_template_input_text = "\n".join(spd_inputs)
+            initial_template_input_text = "\n".join(spd_inputs)+"\n"
             input_files.extend(spd_inputs)
             input_csv_contents = matrix[[source_tier]]
             files = input_csv_contents[source_tier].apply(lambda row: "{0}_dimensions.csv".format(row))
@@ -359,6 +359,7 @@ class normalize_RigidWarp(object):
         self.job_id = "{0}-{1}_i{2}".format(source_tier, source_id, iteration)
         self.pegasus_job = Job(name="Normalize_RigidWarp", namespace="dipa", id=self.job_id+"_Normalize_RigidWarp")
         self.files = {}
+        sep=sepcoarse
         #Check to see if this is the basic level of the normalization.
         #If so, use the SPD specified. Otherwise, input is the output of a previous step.
         if source_tier == hierarchy[-1]:
@@ -374,16 +375,23 @@ class normalize_RigidWarp(object):
         else:
             template_image = "{0}_mean_rigid{1}.nii.gz".format(template_id, iteration-1)
 
-        inputfiles = [inputfile, template_image]
+        if iteration != 1:
+            aff_input_files = [inputbase+"_ri{0}.aff".format(iteration-1)]
+        else:
+            aff_input_files = []
+
+        inputfiles = [inputfile, template_image] + aff_input_files
         outputfiles = ["{0}_ri{1}_aff.nii.gz".format(inputbase, iteration), "{0}_ri{1}.aff".format(inputbase, iteration)]
         args = ["--mean", template_image,
                 "--image", inputfile,
                 "--outimage", "{0}_ri{1}_aff.nii.gz".format(inputbase, iteration),
                 "--outaff", "{0}_ri{1}.aff".format(inputbase, iteration),
                 "--smoption", smoption,
-                "--sepcoarse", sepcoarse]
+                "--sep", sep]
         if iteration == 1:
-            args.append("--initial True")
+            args.extend(["--initial","True"])
+        else:
+            args.extend(["--aff",inputbase+"_ri{0}.aff".format(iteration-1)])
 
         for inputfile in inputfiles:
             self.pegasus_job.uses(inputfile, link=Link.INPUT)
@@ -406,20 +414,21 @@ class normalize_RigidMean(object):
 
         source_ids = list(matrix[matrix[template_tier] == template_id][source_tier].unique())
 
-        aff_files = []
+        aff_image_files = []
         for source_id in source_ids:
             if source_tier == hierarchy[-1]:
                 inputbase = list(matrix[matrix[template_tier] == template_id][matrix[source_tier] == source_id]["SPD"])[0].split(".")[0]
 
             else:
                 inputbase = "{0}-{1}_template".format(source_tier, source_id)
-            aff_files.append(inputbase + "_ri{0}_aff.nii.gz".format(iteration))
+            aff_image_files.append(inputbase + "_ri{0}_aff.nii.gz".format(iteration))
 
-        input_files = ["{0}_rigid_i{1}_template_input.txt".format(template_id, iteration)] + aff_files
+
+        input_files = ["{0}_rigid_i{1}_template_input.txt".format(template_id, iteration)] + aff_image_files
 
         output_files = ["{0}_mean_rigid{1}.nii.gz".format(template_id, iteration)]
 
-        rigid_template_input_text = "\n".join(aff_files)
+        rigid_template_input_text = "\n".join(aff_image_files)+"\n"
 
         self.files["{0}_rigid_i{1}_template_input.txt".format(template_id, iteration)] = rigid_template_input_text
 
@@ -459,6 +468,7 @@ class normalize_AffineWarpA(object):
 
         args = ["--mean", template_image,
                 "--image", inputfile,
+                "--aff", previous_iter[1],
                 "--outimage", "{0}_ai{1}a_aff.nii.gz".format(inputbase, iteration),
                 "--outaff", "{0}_ai{1}a.aff".format(inputbase, iteration),
                 "--smoption", smoption,
@@ -505,7 +515,7 @@ class normalize_AffineMeanA(object):
 
         output_files = ["{0}_inv{1}.aff".format(template_id, iteration)]
 
-        inv_template_input_text = "\n".join(aff_files)
+        inv_template_input_text = "\n".join(aff_files)+"\n"
 
         self.files["{0}_inv_affine_i{1}_input.txt".format(template_id, iteration)] = inv_template_input_text
 
@@ -574,7 +584,7 @@ class normalize_AffineMeanB(object):
                     inputbase = "{0}-{1}_template".format(source_tier, source_id)
                 aff_files.append(inputbase + "_ai{0}b_aff.nii.gz".format(iteration))
 
-            aff_template_input_text = "\n".join(aff_files)
+            aff_template_input_text = "\n".join(aff_files)+"\n"
             self.files["{0}_affine_i{1}_template_input.txt".format(template_id, iteration)] = aff_template_input_text
 
         if template == None:
@@ -681,8 +691,8 @@ class normalize_DiffeomorphicMean(object):
 
         output_files = [template_image, df_image, invdf_image]
 
-        diffeo_input_text = "\n".join(diffeo_files)
-        df_input_text = "\n".join(df_files)
+        diffeo_input_text = "\n".join(diffeo_files)+"\n"
+        df_input_text = "\n".join(df_files)+"\n"
 
         self.files[diffeo_input_list_file] = diffeo_input_text
         self.files[df_input_list_file] = df_input_text
@@ -788,8 +798,8 @@ class normalize_ComposeMean(object):
                 input_image_files.append("{0}-{1}_{2}-{3}_composed.nii.gz".format(template_tier, template_id, source_tier, source_id))
                 input_iso_image_files.append("{0}-{1}_{2}-{3}_composed_iso.nii.gz".format(template_tier, template_id, source_tier, source_id))
             input_files.extend(input_image_files + input_iso_image_files)
-            self.files[compose_input_list_file] = "\n".join(input_image_files)
-            self.files[compose_iso_input_list_file] = "\n".join(input_iso_image_files)
+            self.files[compose_input_list_file] = "\n".join(input_image_files)+"\n"
+            self.files[compose_iso_input_list_file] = "\n".join(input_iso_image_files)+"\n"
 
 
         for inputfile in input_files:

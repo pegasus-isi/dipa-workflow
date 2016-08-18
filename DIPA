@@ -9,8 +9,8 @@ DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 set -e
 
 # pegasus bin directory is needed to find keg
-export PEGASUS_LOCAL_BIN_DIR=`pegasus-config --bin`
 export PATH=/study3/reference/pegasus-dev/SOFTWARE/pegasus/default/bin:$PATH
+export PEGASUS_LOCAL_BIN_DIR=`pegasus-config --bin`
 
 # generate the dax
 export PYTHONPATH=`pegasus-config --python`

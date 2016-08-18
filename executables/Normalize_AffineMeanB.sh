@@ -44,4 +44,4 @@ fi
 
 ${DTITK_ROOT}/bin/TVtool -tr -in ${mean_file} -out ${tr_file}
 
-${DTITK_ROOT}/bin/BinaryThresholdImageFilter ${tr_file} ${mask_file} 0 .01 100 1 0
+${DTITK_ROOT}/utilities/BinaryThresholdImageFilter ${tr_file} ${mask_file} 0 .01 100 1 0

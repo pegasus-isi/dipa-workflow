@@ -10,6 +10,7 @@ import csv
 import json
 from docopt import docopt
 from components.normalize import normalize
+from components.preprocess import preprocess
 
 __version__ = "0.3b"
 __doc__ = """Diffusion Image Processing and Analysis. v{0}
@@ -18,10 +19,10 @@ Usage:
  DIPA [options] (--input <path> | -i <path>) (--project <path> | -p <path>) (--site <site> | -s <site>) [--tier <level>...]
 
 Components:
-     Eddy Correction (Not Implemented)
-     Orientation Checking (Not Implemented)
-     Model Fitting (Not Implemented)
-     Normalization (In Progress)
+     Preprocess - Eddy Correction (In Progress)
+     Preprocess - Orientation Checking (In Progress)
+     Preprocess - Model Fitting (In Progress)
+     Normalization (In Testing)
      ROI Extraction (Not Implemented)
 
 Options:
@@ -32,8 +33,21 @@ Options:
      -s <site> --site <site>         Site from site catalog to run the workflow.
      -k --keep_files                 Keep intermediate files. [default: False]
      -n <str> --name <str>           Add a custom name for the project. [default: Project]
-     --correct_type <str>            (Eddy Correction) Select 'eddy' or 'eddy_correct'. [default: eddy]
-     --fit_method <str>              (Model Fitting) Select either 'WLS' (weighted least squares) or 'OLS' (ordinary least squares) [default: WLS]
+     --correct_type <str>            (Preprocess) Select 'eddy' or 'eddy_correct'. [default: eddy]
+     --correct_topup                 (Preprocess) Use topup, and feed this into eddy. [default: False]
+     --correct_eddy_flm <str>        (Preprocess) First level EC model for eddy ('linear','quatratic', or 'cubic'). [default: quadratic]
+     --correct_eddy_slm <str>        (Preprocess) Second level EC model for eddy ('none','linear', or 'quatratic'). [default: 'none']
+     --correct_eddy_fwhm <num>       (Preprocess) FWHM for conditioning filter when estimating the parameters for eddy. [default: 0]
+     --correct_eddy_niters <int>     (Preprocess) Number of iterations for eddy [default: 5]
+     --correct_eddy_fep	             (Preprocess) Fill empty planes in x- or y-directions in eddy
+     --correct_eddy_interp           (Preprocess) Interpolation model for estimation step in eddy and eddy_correct ('spline' or 'trilinear') [default: spline]
+     --correct_eddy_resamp           (Preprocess) Final resampling method ('jac' or 'lsr') [default: jac]
+     --correct_eddy_nvoxhp <int>     (Preprocess) Number of voxels used to estimate the hyperparameters [default: 1000]
+     --correct_eddy_ff	             (Preprocess) Fudge factor for hyperparameter error variance [default: 10.0]
+     --correct_eddy_no_sep_offs	     (Preprocess) Do NOT attempt to separate field offset from subject movement [default: False]
+     --correct_eddy_dont_peas	     (Preprocess) Do NOT perform a post-eddy alignment of shells [default: False]
+     --no_orient_check               (Preprocess) Do NOT generate output images showing orientation of images. [default: False]
+     --fit_method <str>              (Preprocess) Select either 'WLS' (weighted least squares) or 'OLS' (ordinary least squares) [default: WLS]
      --template <path>               (Normalization) Designate an original template (optional). [default: None]
      --similarity_metric <metric>    (Normalization) Registration type. [default: NMI]
      --species <species>             (Normalization) Species (either HUMAN, MONKEY, or RAT). [default: HUMAN]
@@ -114,6 +128,16 @@ def create_workflow(options):
         matrix = pandas.read_csv(clean_path(options["InputFile"]))
     except:
         print("Could not find the input file specified here: "+ clean_path(options["InputFile"]))
+        sys.exit(1)
+
+    # print("Adding preprocessing to workflow.")
+    # preprocessing_section = preprocess(matrix, hierarchy=options["NormalizeHierarchy"],
+    #                                            name=options["ProjectName"],
+    #                                            eddy_correction=options["EddyCorrection"],
+    #                                            orient_check=options["OrientCheck"],
+    #                                            fit_method=options["FitMethod"],
+    #                                            is_shelled=options["Shelled"])
+    # dax = preprocessing_section.add_to_dax(dax)
 
     print("Adding normalization to workflow.")
     normalize_section = normalize(matrix, hierarchy=options["NormalizeHierarchy"],
@@ -126,7 +150,15 @@ def create_workflow(options):
                                           similarity_metric=options["SimilarityMetric"],
                                           species=options["Species"])
     dax = normalize_section.add_to_dax(dax)
+
+    #Perform Linkages
+    # print("Linking preprocesssing to normalization in workflow.")
+    # for index, end_preprocessing_step in enumerate(preprocesssing_section.final_steps):
+    #     dax.depends(parent=end_preprocessing_step.pegasus_job, child=normalize_section.initial_steps[index].pegasus_job)
+
     try:
+        # for index, mapping in preprocessing_section.mappings.iterrows():
+        #     shutil.copyfile(mapping["SOURCE"], options["ProjectDir"]+"/input/"+mapping["DESTINATION"])
         for index, mapping in normalize_section.mappings.iterrows():
             shutil.copyfile(mapping["SOURCE"], options["ProjectDir"]+"/input/"+mapping["DESTINATION"])
     except:
@@ -174,6 +206,7 @@ def main():
     options["DaxFile"] = options["ProjectDir"]+"/conf/master.dax"
     options["DotFile"] = options["ProjectDir"]+"/conf/master.dot"
     options["PDFFile"] = options["ProjectDir"]+"/conf/master.pdf"
+    options["ChangedDax"] = False
     options["DipaDir"] = os.path.dirname(os.path.realpath(__file__))
     environment = dict(os.environ)
     jsonsettings = read_json(clean_path(options["DipaDir"]+"/conf/site_setup.json"))
@@ -192,8 +225,14 @@ def main():
         if not os.path.exists(directory):
             os.mkdir(directory)
     if os.path.exists(options["ProjectDir"]+"/conf"):
+        if os.path.exists(options["ProjectDir"]+"/conf/input.csv"):
+            with open(options["ProjectDir"]+"/conf/input.csv") as f1:
+                with open(options["InputFile"]) as f2:
+                    if f1.read() == f2.read():
+                        options["ChangedDax"] = True
         shutil.rmtree(options["ProjectDir"]+"/conf")
     shutil.copytree(options["DipaDir"]+"/conf",options["ProjectDir"]+"/conf")
+    #os.copyfile(options["InputFile"], )
 
 
     #Create the DAX
@@ -207,12 +246,18 @@ def main():
     #Run pegasus-plan with these settings.
     os.chdir(options["ProjectDir"])
     print("Submitting the workflow")
-    pegasus_plan_command = "pegasus-plan --conf {ProjectDir}/conf/pegasusrc --sites {Site} --input-dir {ProjectDir}/input --output-site local --dir {ProjectDir}/working --relative-submit-dir ./condorsubmit --dax {DaxFile} --force --cleanup none --submit -vv".format(**options)
+    if os.listdir("{ProjectDir}/outputs".format(**options)) == []:
+        pegasus_command = "pegasus-plan --conf {ProjectDir}/conf/pegasusrc --sites {Site} --input-dir {ProjectDir}/input --output-site local --dir {ProjectDir}/working --relative-submit-dir ./condorsubmit --dax {DaxFile} --force --cleanup none --submit -vv".format(**options)
+    else:
+        pegasus_command = "pegasus-run {ProjectDir}/working/condorsubmit".format(**options)
     pegasus_graphviz_command = "pegasus-graphviz {DaxFile} -o {DotFile} -s -l id -f".format(**options)
     dot_command = "dot -Tpdf {DotFile} -o {PDFFile}".format(**options)
-    system_call(pegasus_plan_command, environment)
+    system_call(pegasus_command, environment)
     system_call(pegasus_graphviz_command, environment)
-    system_call(dot_command, environment)
+    try:
+        system_call(dot_command, environment)
+    except:
+        print("WARNING: Could not save a pdf verison of the workflow.")
 
 if __name__ == "__main__":
     main()

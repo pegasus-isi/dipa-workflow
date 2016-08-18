@@ -45,9 +45,9 @@ if [[ $static == "True" ]] ; then
   cp ${orig_file} ${final_mean_file}
   ${DTITK_ROOT}/bin/TVResample -in ${final_mean_file} -vsize `cat ${iso_vsize_file}` -size `cat ${dim_file}` -out ${iso_final_mean_file}
 else
-  ${DTIK_ROOT}/bin/TVMean -in ${input_list_file} -out ${final_mean_file}
-  ${DTIK_ROOT}/bin/TVMean -in ${iso_input_list_file} -out ${iso_final_mean_file}
+  ${DTITK_ROOT}/bin/TVMean -in ${input_list_file} -out ${final_mean_file}
+  ${DTITK_ROOT}/bin/TVMean -in ${iso_input_list_file} -out ${iso_final_mean_file}
 fi
 
-${DTIK_ROOT}/bin/TVtool -fa -in ${final_mean_file} -out ${fa_final_mean_file}
-${DTIK_ROOT}/bin/TVtool -fa -in ${iso_final_mean_file} -out ${iso_fa_final_mean_file}
+${DTITK_ROOT}/bin/TVtool -fa -in ${final_mean_file} -out ${fa_final_mean_file}
+${DTITK_ROOT}/bin/TVtool -fa -in ${iso_final_mean_file} -out ${iso_fa_final_mean_file}

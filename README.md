@@ -37,5 +37,5 @@ This is an example of non-hierarchical normalization:
 ![Non-Hierarchical Normalization](/doc/example_normalization_nohierarchy.png)
 
 ### Normalization (Hierarchical)
-This is an example of non-hierarchical normalization (3 groups of 2):
+This is an example of hierarchical normalization (3 groups of 2):
 ![Hierarchical Normalization](/doc/example_normalization_hierarchy.png)

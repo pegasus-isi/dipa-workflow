@@ -39,3 +39,14 @@ This is an example of non-hierarchical normalization:
 ### Normalization (Hierarchical)
 This is an example of hierarchical normalization (3 groups of 2):
 ![Hierarchical Normalization](/doc/example_normalization_hierarchy.png)
+
+## Credits
+* Andrew Schoen (Primary Coding) [Github](https://github.com/AndrewJSchoen)
+* Nagesh Adluru (Imaging Consultant) [Github](https://github.com/nadluru)
+* Michael Stoneman (Assistant Coding) [Github](https://github.com/stonemanm)
+* Nate Vack (Software Consultant) [Github](https://github.com/njvack)
+
+## Acknowledgments
+* Karan Vahi (Pegasus) [Github](https://github.com/vahi)
+* David Thompson (System Administration Consultant)
+* Ross Luo (Testing)

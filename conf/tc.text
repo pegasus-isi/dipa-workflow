@@ -7,8 +7,8 @@ tr dipa::Preprocess_Eddy{
 
 	#matches condor.request_cpus
 	profile pegasus "cores" "1"
-	profile pegasus "memory" "512"
-	profile condor  "request_disk" "2"
+	profile pegasus "memory" "8000"
+	profile condor  "request_disk" "1000000"
 
 	# environment variables that the scripts require
   profile env "FSL_ROOT" "${FSL_ROOT}"

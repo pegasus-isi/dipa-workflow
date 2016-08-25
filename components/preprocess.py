@@ -265,7 +265,7 @@ class Preprocess_Fit_Dipy(object):
         self.files = {}
 
         imageinputfile = subset_id+"_dwi_ecc.nii.gz"
-        bvecsinputfile = subset_id+"_bvecs.txt"
+        bvecsinputfile = subset_id+"_rotated_bvecs.txt"
         bvalsinputfile = subset_id+"_bvals.txt"
 
         outspd = subset_id+"_spd.nii.gz"

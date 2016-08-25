@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 
 #Accept Arguments
 while [[ "$#" > 1 ]]; do case $1 in

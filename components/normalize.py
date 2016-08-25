@@ -3,24 +3,21 @@ from Pegasus.DAX3 import *
 import os
 import sys
 import pandas
+from component import Component
 
-class normalize(object):
+class normalize(Component):
     """
     Normalize component of DIPA.
     Uses DTI-TK to normalize subjects to an iteratively improved template, or a predefined one.
     matrix is assumed to be a pandas dataframe. "hierarchy" is a list referencing headers in the matrix.
     """
     def __init__(self, matrix, hierarchy=["PROJECT", "ID"], name="Project", template=None, similarity_metric="NMI", species="Human", rigid=3, affine=3, diffeomorphic=6, transferflag=True):
-        self.name = name
-        self.matrix = matrix.copy()
+        Component.__init__(self, matrix, hierarchy, name, transferflag)
 
-        self.hierarchy = hierarchy
         if template != None:
             self.rigid = 1
             self.affine = 1
             self.diffeomorphic = 1
-            #Override hierarchy in normalization. Register directly to the template.
-            self.hierarchy = ["PROJECT", "ID"]
         else:
             self.rigid = int(rigid)
             self.affine = int(affine)
@@ -31,17 +28,8 @@ class normalize(object):
                 self.affine = 1
             if self.diffeomorphic < 1:
                 self.diffeomorphic = 1
-            if "ID" not in self.hierarchy:
-                self.hierarchy.append("ID")
-            if "PROJECT" not in self.hierarchy:
-                self.hierarchy = ["PROJECT"] + self.hierarchy
 
-        #Rework the matrix file:
-        self.matrix["SPD_NEW"] = matrix.apply(lambda row: self.__get_unique_matrix_key__(row)+"_spd.nii.gz", axis=1)
-
-        self.mappings = pandas.DataFrame({"SOURCE":self.matrix["SPD"], "DESTINATION": self.matrix["SPD_NEW"]})
-        self.matrix["SPD"] = self.matrix["SPD_NEW"]
-        self.matrix.drop("SPD_NEW",1)
+        self.matrix["SPD"] = self.matrix["FULL"] + "_spd.nii.gz"
 
 
         if template == None:
@@ -53,8 +41,6 @@ class normalize(object):
 
         self.similarity_metric = similarity_metric
         self.species = species.upper()
-        self.files = {}
-        self.transferflag = transferflag
 
         sep_lookup = {
         "HUMAN":"4.0",
@@ -64,8 +50,7 @@ class normalize(object):
         try:
             self.sep_coarse = sep_lookup[self.species]
         except:
-            print("The species you specified is not recognized. Select one of {0}".format(sep_lookup.keys()))
-            sys.exit(1)
+            self.messages.append(Notice("Error", "The species you specified is not recognized. Select one of {0}".format(sep_lookup.keys())))
 
 
         if "PROJECT" not in self.matrix.columns:
@@ -73,51 +58,70 @@ class normalize(object):
         try:
             self.matrix = self.matrix[self.hierarchy + ["SPD"]]
         except:
-            print("The spreadsheet you supplied did not have columns for the hierarchy specified. Exiting.")
-            sys.exit(1)
+            self.messages.append(Notice("Error", "The spreadsheet you supplied did not have columns for the hierarchy specified."))
 
         self.initial_steps = []
         self.final_steps = []
 
-    def __get_unique_matrix_key__(self, row):
-        values = []
-        for level in self.hierarchy:
-            if level != "PROJECT":
-                values.append(str(row[level]))
-        return "_".join(values)
+    @classmethod
+    def get_arg_mappings(cls):
+        args = {
+        "--template": "Template",
+        "--similarity_metric": "SimilarityMetric",
+        "--species": "Species",
+        "--rigid": "RigidIterations",
+        "--affine": "AffineIterations",
+        "--diffeo": "DiffeomorphicIterations"}
 
-    def __plan_tier__(self, matrix, hierarchies, dax, initial=True):
+        return args
+
+    def __plan_tier__(self, matrix, hierarchies, dax, process, initial=True, previous_template_subset_id=None):
 
         #Plan normalization here
         template_tier = hierarchies[0]
         template_id = matrix[hierarchies[0]].unique()[0]
         source_tier = hierarchies[1]
-        source_ids = list(matrix[matrix[template_tier] == template_id][source_tier].unique())
+
+        if initial == True or previous_template_subset_id == None:
+            template_subset_id = template_tier+"-"+template_id
+        else:
+            template_subset_id = previous_template_subset_id+"_"+template_tier+"-"+template_id
+
+        source_zips = pandas.Series(matrix[matrix[template_tier] == template_id][source_tier].unique()).apply(lambda val: (val, template_subset_id+"_{0}-{1}".format(source_tier, val)))
+
+        #template_subset_id = self.hierarchy[0:self.hierarchy.index(template_tier)+1]
+        #source_subset_hierarchies = self.hierarchy[0:self.hierarchy.index(source_tier)+1]
+        #source_zips = self.matrix[source_subset_hierarchies].drop_duplicates().apply(lambda row: (row[source_tier], self.__get_subset_id__(row, source_subset_hierarchies)),axis=1)
+
 
         #ImageDim
         ImageDim_Jobs = []
-        for source_id in source_ids:
-            imagedimjob = normalize_ImageDim(template_tier=template_tier, source_tier=source_tier, template_id=template_id, source_id=source_id, hierarchy=hierarchies, matrix=matrix, template=self.resampled_template, transferflag=self.transferflag)
+        for values in source_zips:
+            source_id, subset_id = values
+            imagedimjob = normalize_ImageDim(subset_id=subset_id, template_tier=template_tier, source_tier=source_tier, template_id=template_id, source_id=source_id, hierarchy=hierarchies, matrix=matrix, template=self.resampled_template, transferflag=self.transferflag)
             self.files.update(imagedimjob.files)
             ImageDim_Jobs.append(imagedimjob)
             dax.addJob(imagedimjob.pegasus_job)
             if source_tier == hierarchies[-1]:
                 #Base Tier, add to self.initial_steps
                 self.initial_steps.append(imagedimjob)
+            process.increment()
 
         #CreateTemplate
-        createtemplatejob = normalize_CreateTemplate(template_tier=template_tier, source_tier=source_tier, template_id=template_id, hierarchy=hierarchies, matrix=matrix, template=self.resampled_template, transferflag=self.transferflag)
+        createtemplatejob = normalize_CreateTemplate(subset_id=template_subset_id, template_tier=template_tier, source_tier=source_tier, template_id=template_id, hierarchy=hierarchies, matrix=matrix, template=self.resampled_template, transferflag=self.transferflag)
         self.files.update(createtemplatejob.files)
         dax.addJob(createtemplatejob.pegasus_job)
         for ImageDim_Job in ImageDim_Jobs:
             dax.depends(parent=ImageDim_Job.pegasus_job, child=createtemplatejob.pegasus_job)
+        process.increment()
 
         #Rigid
         for rigid_iteration in range(1,self.rigid+1):
             RigidWarp_Jobs = []
             #Individual Warp
-            for source_id in source_ids:
-                rigidjob = normalize_RigidWarp(template_tier=template_tier, source_tier=source_tier, template_id=template_id, source_id=source_id, hierarchy=hierarchies, matrix=matrix, iteration=rigid_iteration, smoption=self.similarity_metric, sepcoarse=self.sep_coarse, template=self.resampled_template, transferflag=self.transferflag)
+            for values in source_zips:
+                source_id, subset_id = values
+                rigidjob = normalize_RigidWarp(subset_id=subset_id, template_tier=template_tier, source_tier=source_tier, template_id=template_id, source_id=source_id, hierarchy=hierarchies, matrix=matrix, iteration=rigid_iteration, smoption=self.similarity_metric, sepcoarse=self.sep_coarse, template=self.resampled_template, transferflag=self.transferflag)
                 self.files.update(rigidjob.files)
                 RigidWarp_Jobs.append(rigidjob)
                 dax.addJob(rigidjob.pegasus_job)
@@ -125,22 +129,25 @@ class normalize(object):
                     dax.depends(parent=createtemplatejob.pegasus_job, child=rigidjob.pegasus_job)
                 else:
                     dax.depends(parent=rigidmeanjob.pegasus_job, child=rigidjob.pegasus_job)
+                process.increment()
 
             #Group Mean
             if self.template == None:
-                rigidmeanjob=normalize_RigidMean(template_tier=template_tier, source_tier=source_tier, template_id=template_id, hierarchy=hierarchies, matrix=matrix, iteration=rigid_iteration, smoption=self.similarity_metric, transferflag=self.transferflag)
+                rigidmeanjob=normalize_RigidMean(subset_id=template_subset_id, template_tier=template_tier, source_tier=source_tier, template_id=template_id, hierarchy=hierarchies, matrix=matrix, iteration=rigid_iteration, smoption=self.similarity_metric, transferflag=self.transferflag)
                 dax.addJob(rigidmeanjob.pegasus_job)
                 self.files.update(rigidmeanjob.files)
                 for RigidWarp_Job in RigidWarp_Jobs:
                     dax.depends(parent=RigidWarp_Job.pegasus_job, child=rigidmeanjob.pegasus_job)
+                process.increment()
 
         #Affine
         for affine_iteration in range(1,self.affine+1):
             AffineWarpA_Jobs = []
             AffineWarpB_Jobs = []
             #Individual Warp, Part A
-            for index, source_id in enumerate(source_ids):
-                affinewarpajob = normalize_AffineWarpA(template_tier=template_tier, source_tier=source_tier, template_id=template_id, source_id=source_id, hierarchy=hierarchies, matrix=matrix, iteration=affine_iteration, template=self.resampled_template, smoption=self.similarity_metric, rigid=self.rigid, sepcoarse=self.sep_coarse, transferflag=self.transferflag)
+            for index, values in enumerate(source_zips):
+                source_id, subset_id = values
+                affinewarpajob = normalize_AffineWarpA(subset_id=subset_id, template_tier=template_tier, source_tier=source_tier, template_id=template_id, source_id=source_id, hierarchy=hierarchies, matrix=matrix, iteration=affine_iteration, template=self.resampled_template, smoption=self.similarity_metric, rigid=self.rigid, sepcoarse=self.sep_coarse, transferflag=self.transferflag)
                 AffineWarpA_Jobs.append(affinewarpajob)
                 dax.addJob(affinewarpajob.pegasus_job)
                 self.files.update(affinewarpajob.files)
@@ -151,35 +158,41 @@ class normalize(object):
                         dax.depends(parent=RigidWarp_Jobs[index].pegasus_job, child=affinewarpajob.pegasus_job)
                 else:
                     dax.depends(parent=affinemeanbjob.pegasus_job, child=affinewarpajob.pegasus_job)
+                process.increment()
 
             #Group Mean, Part A
-            affinemeanajob = normalize_AffineMeanA(template_tier=template_tier, source_tier=source_tier, template_id=template_id, hierarchy=hierarchies, matrix=matrix, iteration=affine_iteration, smoption=self.similarity_metric, template=self.resampled_template, rigid=self.rigid, transferflag=self.transferflag)
+            affinemeanajob = normalize_AffineMeanA(subset_id=template_subset_id, template_tier=template_tier, source_tier=source_tier, template_id=template_id, hierarchy=hierarchies, matrix=matrix, iteration=affine_iteration, smoption=self.similarity_metric, template=self.resampled_template, rigid=self.rigid, transferflag=self.transferflag)
             dax.addJob(affinemeanajob.pegasus_job)
             self.files.update(affinemeanajob.files)
             for AffineWarpA_Job in AffineWarpA_Jobs:
                 dax.depends(parent=AffineWarpA_Job.pegasus_job, child=affinemeanajob.pegasus_job)
+            process.increment()
 
             #Individual Warp, Part B
-            for source_id in source_ids:
-                affinewarpbjob = normalize_AffineWarpB(template_tier=template_tier, source_tier=source_tier, template_id=template_id, source_id=source_id, hierarchy=hierarchies, matrix=matrix, iteration=affine_iteration, smoption=self.similarity_metric, sepcoarse=self.sep_coarse, template=self.resampled_template, rigid=self.rigid, transferflag=self.transferflag)
+            for values in source_zips:
+                source_id, subset_id = values
+                affinewarpbjob = normalize_AffineWarpB(subset_id=subset_id, template_tier=template_tier, source_tier=source_tier, template_id=template_id, source_id=source_id, hierarchy=hierarchies, matrix=matrix, iteration=affine_iteration, smoption=self.similarity_metric, sepcoarse=self.sep_coarse, template=self.resampled_template, rigid=self.rigid, transferflag=self.transferflag)
                 AffineWarpB_Jobs.append(affinewarpbjob)
                 dax.addJob(affinewarpbjob.pegasus_job)
                 self.files.update(affinewarpbjob.files)
                 dax.depends(parent=affinemeanajob.pegasus_job, child=affinewarpbjob.pegasus_job)
+                process.increment()
 
             #Group Mean, Part B
-            affinemeanbjob = normalize_AffineMeanB(template_tier=template_tier, source_tier=source_tier, template_id=template_id, hierarchy=hierarchies, matrix=matrix, iteration=affine_iteration, smoption=self.similarity_metric, template=self.resampled_template, transferflag=self.transferflag)
+            affinemeanbjob = normalize_AffineMeanB(subset_id=template_subset_id, template_tier=template_tier, source_tier=source_tier, template_id=template_id, hierarchy=hierarchies, matrix=matrix, iteration=affine_iteration, smoption=self.similarity_metric, template=self.resampled_template, transferflag=self.transferflag)
             dax.addJob(affinemeanbjob.pegasus_job)
             self.files.update(affinemeanbjob.files)
             for AffineWarpB_Job in AffineWarpB_Jobs:
                 dax.depends(parent=AffineWarpB_Job.pegasus_job, child=affinemeanbjob.pegasus_job)
+            process.increment()
 
         #Diffeomorphic
         for diffeo_iteration in range(1,self.diffeomorphic+1):
             DiffeoWarp_Jobs = []
             #Individual Warp
-            for source_id in source_ids:
-                diffeowarpjob = normalize_DiffeomorphicWarp(template_tier=template_tier, source_tier=source_tier, template_id=template_id, source_id=source_id, hierarchy=hierarchies, matrix=matrix, iteration=diffeo_iteration, template=self.resampled_template, affine=self.affine, transferflag=self.transferflag)
+            for values in source_zips:
+                source_id, subset_id = values
+                diffeowarpjob = normalize_DiffeomorphicWarp(subset_id=subset_id, template_tier=template_tier, source_tier=source_tier, template_id=template_id, source_id=source_id, hierarchy=hierarchies, matrix=matrix, iteration=diffeo_iteration, template=self.resampled_template, affine=self.affine, transferflag=self.transferflag)
                 dax.addJob(diffeowarpjob.pegasus_job)
                 DiffeoWarp_Jobs.append(diffeowarpjob)
                 self.files.update(diffeowarpjob.files)
@@ -187,19 +200,22 @@ class normalize(object):
                     dax.depends(parent=affinemeanbjob.pegasus_job, child=diffeowarpjob.pegasus_job)
                 else:
                     dax.depends(parent=diffeomeanjob.pegasus_job, child=diffeowarpjob.pegasus_job)
+                process.increment()
 
             #Group Mean
             if self.template == None:
-                diffeomeanjob = normalize_DiffeomorphicMean(template_tier=template_tier, source_tier=source_tier, template_id=template_id, hierarchy=hierarchies, matrix=matrix, iteration=diffeo_iteration, transferflag=self.transferflag)
+                diffeomeanjob = normalize_DiffeomorphicMean(subset_id=template_subset_id, template_tier=template_tier, source_tier=source_tier, template_id=template_id, hierarchy=hierarchies, matrix=matrix, iteration=diffeo_iteration, transferflag=self.transferflag)
                 dax.addJob(diffeomeanjob.pegasus_job)
                 self.files.update(diffeomeanjob.files)
                 for DiffeoWarp_Job in DiffeoWarp_Jobs:
                     dax.depends(parent=DiffeoWarp_Job.pegasus_job, child=diffeomeanjob.pegasus_job)
+                process.increment()
 
         #Composition
         ComposeWarp_Jobs = []
-        for index, source_id in enumerate(source_ids):
-            composewarpjob = normalize_ComposeWarp(template_tier=template_tier, source_tier=source_tier, template_id=template_id, source_id=source_id, hierarchy=hierarchies, matrix=matrix, template=self.resampled_template, affine=self.affine, diffeomorphic=self.diffeomorphic, transferflag=self.transferflag)
+        for index, values in enumerate(source_zips):
+            source_id, subset_id = values
+            composewarpjob = normalize_ComposeWarp(subset_id=subset_id, template_tier=template_tier, source_tier=source_tier, template_id=template_id, source_id=source_id, hierarchy=hierarchies, matrix=matrix, template=self.resampled_template, affine=self.affine, diffeomorphic=self.diffeomorphic, transferflag=self.transferflag)
             dax.addJob(composewarpjob.pegasus_job)
             ComposeWarp_Jobs.append(composewarpjob)
             self.files.update(composewarpjob.files)
@@ -207,18 +223,20 @@ class normalize(object):
                 dax.depends(parent=diffeomeanjob.pegasus_job, child=composewarpjob.pegasus_job)
             else:
                 dax.depends(parent=DiffeoWarp_Jobs[index].pegasus_job, child=composewarpjob.pegasus_job)
+            process.increment()
 
-        composemeanjob = normalize_ComposeMean(template_tier=template_tier, source_tier=source_tier, template_id=template_id, hierarchy=hierarchies, matrix=matrix, template=self.resampled_template, transferflag=self.transferflag)
+        composemeanjob = normalize_ComposeMean(subset_id=template_subset_id, template_tier=template_tier, source_tier=source_tier, template_id=template_id, hierarchy=hierarchies, matrix=matrix, template=self.resampled_template, transferflag=self.transferflag)
         dax.addJob(composemeanjob.pegasus_job)
         self.files.update(composemeanjob.files)
         for ComposeWarp_Job in ComposeWarp_Jobs:
             dax.depends(parent=ComposeWarp_Job.pegasus_job, child=composemeanjob.pegasus_job)
+        process.increment()
 
         #Possibly go deeper
         if len(hierarchies) > 2:
             child_matrix_set = matrix[hierarchies[1:]+["SPD"]]
             for child_group, child_matrix in child_matrix_set.groupby(hierarchies[1]):
-                dax, parents = self.__plan_tier__(child_matrix[hierarchies[1:]+["SPD"]], hierarchies[1:], dax, initial=False)
+                dax, parents = self.__plan_tier__(child_matrix[hierarchies[1:]+["SPD"]], hierarchies[1:], dax, process, initial=False, previous_template_subset_id=template_subset_id)
                 for parent in parents:
                     for ImageDim_Job in ImageDim_Jobs:
                         dax.depends(parent=parent.pegasus_job, child=ImageDim_Job.pegasus_job)
@@ -234,6 +252,7 @@ class normalize(object):
                 ComposeFullWarp_Jobs.append(composefullwarpjob)
                 dax.addJob(composefullwarpjob.pegasus_job)
                 dax.depends(parent=composemeanjob.pegasus_job, child=composefullwarpjob.pegasus_job)
+                process.increment()
             self.final_steps = ComposeFullWarp_Jobs
             return dax, ComposeFullWarp_Jobs
         else:
@@ -244,20 +263,15 @@ class normalize(object):
 
 
 
-    def add_to_dax(self, dax):
-        dax, parents = self.__plan_tier__(self.matrix, self.hierarchy, dax)
+    def add_to_dax(self, dax, process):
+        dax, parents = self.__plan_tier__(self.matrix, self.hierarchy, dax, process)
         self.parents = parents
         return dax
 
-    def save_files(self, root):
-        for filename, contents in self.files.iteritems():
-            with open(root+"/"+filename, "w") as f:
-                f.write(contents)
-
 class normalize_ImageDim(object):
-    def __init__(self, template_tier, source_tier, template_id, source_id, hierarchy, matrix, transferflag, template=None):
-        self.job_id = "{0}-{1}".format(source_tier, source_id)
-        self.pegasus_job = Job(name="Normalize_ImageDim", namespace="dipa", id=self.job_id+"_Normalize_ImageDim")
+    def __init__(self, subset_id, template_tier, source_tier, template_id, source_id, hierarchy, matrix, transferflag, template=None):
+        self.job_id = subset_id+"_Normalize_ImageDim"
+        self.pegasus_job = Job(name="Normalize_ImageDim", namespace="dipa", id=self.job_id)
         self.files = {}
         #Check to see if this is the basic level of the normalization.
         #If so, use the SPD specified. Otherwise, input is the output of a previous step.
@@ -278,9 +292,9 @@ class normalize_ImageDim(object):
         self.pegasus_job.addArguments(*args)
 
 class normalize_CreateTemplate(object):
-    def __init__(self, template_tier, source_tier, template_id, hierarchy, matrix, transferflag, template=None):
-        self.job_id = "{0}-{1}".format(template_tier, template_id)
-        self.pegasus_job = Job(name="Normalize_CreateTemplate", namespace="dipa", id=self.job_id+"_Normalize_CreateTemplate")
+    def __init__(self, subset_id, template_tier, source_tier, template_id, hierarchy, matrix, transferflag, template=None):
+        self.job_id = subset_id+"Normalize_CreateTemplate"
+        self.pegasus_job = Job(name="Normalize_CreateTemplate", namespace="dipa", id=self.job_id)
         self.files = {}
 
         source_ids = list(matrix[matrix[template_tier] == template_id][source_tier].unique())
@@ -355,9 +369,9 @@ class normalize_CreateTemplate(object):
             self.pegasus_job.uses(outputfile, link=Link.OUTPUT, transfer=transferflag)
 
 class normalize_RigidWarp(object):
-    def __init__(self, template_tier, source_tier, template_id, source_id, iteration, smoption, sepcoarse, hierarchy, matrix, transferflag, template=None):
-        self.job_id = "{0}-{1}_i{2}".format(source_tier, source_id, iteration)
-        self.pegasus_job = Job(name="Normalize_RigidWarp", namespace="dipa", id=self.job_id+"_Normalize_RigidWarp")
+    def __init__(self, subset_id, template_tier, source_tier, template_id, source_id, iteration, smoption, sepcoarse, hierarchy, matrix, transferflag, template=None):
+        self.job_id = subset_id+"_Normalize_RigidWarp_i{0}".format(iteration)
+        self.pegasus_job = Job(name="Normalize_RigidWarp", namespace="dipa", id=self.job_id)
         self.files = {}
         sep=sepcoarse
         #Check to see if this is the basic level of the normalization.
@@ -401,9 +415,9 @@ class normalize_RigidWarp(object):
         self.pegasus_job.addArguments(*args)
 
 class normalize_RigidMean(object):
-    def __init__(self, template_tier, source_tier, template_id, hierarchy, matrix, iteration, smoption, transferflag):
-        self.job_id = "{0}-{1}_i{2}".format(template_tier, template_id, iteration)
-        self.pegasus_job = Job(name="Normalize_RigidMean", namespace="dipa", id=self.job_id+"_Normalize_RigidMean")
+    def __init__(self, subset_id, template_tier, source_tier, template_id, hierarchy, matrix, iteration, smoption, transferflag):
+        self.job_id = subset_id+"_Normalize_RigidMean_i{0}".format(iteration)
+        self.pegasus_job = Job(name="Normalize_RigidMean", namespace="dipa", id=self.job_id)
         self.files = {}
 
         args = ["--affinelist", "{0}_rigid_i{1}_template_input.txt".format(template_id, iteration),
@@ -438,9 +452,9 @@ class normalize_RigidMean(object):
             self.pegasus_job.uses(outputfile, link=Link.OUTPUT, transfer=transferflag)
 
 class normalize_AffineWarpA(object):
-    def __init__(self, template_tier, source_tier, template_id, source_id, iteration, smoption, sepcoarse, hierarchy, matrix, template, rigid, transferflag):
-        self.job_id = "{0}-{1}_i{2}".format(source_tier, source_id, iteration)
-        self.pegasus_job = Job(name="Normalize_AffineWarpA", namespace="dipa", id=self.job_id+"_Normalize_AffineWarpA")
+    def __init__(self, subset_id, template_tier, source_tier, template_id, source_id, iteration, smoption, sepcoarse, hierarchy, matrix, template, rigid, transferflag):
+        self.job_id = subset_id+"_Normalize_AffineWarpA_i{0}".format(iteration)
+        self.pegasus_job = Job(name="Normalize_AffineWarpA", namespace="dipa", id=self.job_id)
         self.files = {}
         #Check to see if this is the basic level of the normalization.
         #If so, use the SPD specified. Otherwise, input is the output of a previous step.
@@ -482,9 +496,9 @@ class normalize_AffineWarpA(object):
         self.pegasus_job.addArguments(*args)
 
 class normalize_AffineMeanA(object):
-    def __init__(self, template_tier, source_tier, template_id, hierarchy, matrix, iteration, rigid, smoption, template, transferflag):
-        self.job_id = "{0}-{1}_i{2}".format(template_tier, template_id, iteration)
-        self.pegasus_job = Job(name="Normalize_AffineMeanA", namespace="dipa", id=self.job_id+"_Normalize_AffineMeanA")
+    def __init__(self, subset_id, template_tier, source_tier, template_id, hierarchy, matrix, iteration, rigid, smoption, template, transferflag):
+        self.job_id = subset_id+"_Normalize_AffineMeanA_i{0}".format(iteration)
+        self.pegasus_job = Job(name="Normalize_AffineMeanA", namespace="dipa", id=self.job_id)
         self.files = {}
 
         if iteration == 1:
@@ -525,9 +539,9 @@ class normalize_AffineMeanA(object):
             self.pegasus_job.uses(outputfile, link=Link.OUTPUT, transfer=transferflag)
 
 class normalize_AffineWarpB(object):
-    def __init__(self, template_tier, source_tier, template_id, source_id, iteration, smoption, template, sepcoarse, rigid, hierarchy, matrix, transferflag):
-        self.job_id = "{0}-{1}_i{2}".format(source_tier, source_id, iteration)
-        self.pegasus_job = Job(name="Normalize_AffineWarpB", namespace="dipa", id=self.job_id+"_Normalize_AffineWarpB")
+    def __init__(self, subset_id, template_tier, source_tier, template_id, source_id, iteration, smoption, template, sepcoarse, rigid, hierarchy, matrix, transferflag):
+        self.job_id = subset_id+"_Normalize_AffineWarpB_i{0}".format(iteration)
+        self.pegasus_job = Job(name="Normalize_AffineWarpB", namespace="dipa", id=self.job_id)
         self.files = {}
         #Check to see if this is the basic level of the normalization.
         #If so, use the SPD specified. Otherwise, input is the output of a previous step.
@@ -568,9 +582,9 @@ class normalize_AffineWarpB(object):
         self.pegasus_job.addArguments(*args)
 
 class normalize_AffineMeanB(object):
-    def __init__(self, template_tier, source_tier, template_id, hierarchy, matrix, iteration, smoption, template, transferflag):
-        self.job_id = "{0}-{1}_i{2}".format(template_tier, template_id, iteration)
-        self.pegasus_job = Job(name="Normalize_AffineMeanB", namespace="dipa", id=self.job_id+"_Normalize_AffineMeanB")
+    def __init__(self, subset_id, template_tier, source_tier, template_id, hierarchy, matrix, iteration, smoption, template, transferflag):
+        self.job_id = subset_id+"_Normalize_AffineMeanB_i{0}".format(iteration)
+        self.pegasus_job = Job(name="Normalize_AffineMeanB", namespace="dipa", id=self.job_id)
         self.files = {}
 
         source_ids = list(matrix[matrix[template_tier] == template_id][source_tier].unique())
@@ -612,9 +626,9 @@ class normalize_AffineMeanB(object):
             self.pegasus_job.uses(outputfile, link=Link.OUTPUT, transfer=transferflag)
 
 class normalize_DiffeomorphicWarp(object):
-    def __init__(self, template_tier, source_tier, template_id, source_id, iteration, affine, hierarchy, matrix, transferflag, template=None):
-        self.job_id = "{0}-{1}_i{2}".format(source_tier, source_id, iteration)
-        self.pegasus_job = Job(name="Normalize_DiffeomorphicWarp", namespace="dipa", id=self.job_id+"_Normalize_DiffeomorphicWarp")
+    def __init__(self, subset_id, template_tier, source_tier, template_id, source_id, iteration, affine, hierarchy, matrix, transferflag, template=None):
+        self.job_id = subset_id+"_Normalize_DiffeomorphicWarp_i{0}".format(iteration)
+        self.pegasus_job = Job(name="Normalize_DiffeomorphicWarp", namespace="dipa", id=self.job_id)
         self.files = {}
         #Check to see if this is the basic level of the normalization.
         #If so, use the SPD specified. Otherwise, input is the output of a previous step.
@@ -653,9 +667,9 @@ class normalize_DiffeomorphicWarp(object):
         self.pegasus_job.addArguments(*args)
 
 class normalize_DiffeomorphicMean(object):
-    def __init__(self, template_tier, source_tier, template_id, hierarchy, matrix, iteration, transferflag):
-        self.job_id = "{0}-{1}_i{2}".format(template_tier, template_id, iteration)
-        self.pegasus_job = Job(name="Normalize_DiffeomorphicMean", namespace="dipa", id=self.job_id+"_Normalize_DiffeomorphicMean")
+    def __init__(self, subset_id, template_tier, source_tier, template_id, hierarchy, matrix, iteration, transferflag):
+        self.job_id = subset_id+"_Normalize_DiffeomorphicMean_i{0}".format(iteration)
+        self.pegasus_job = Job(name="Normalize_DiffeomorphicMean", namespace="dipa", id=self.job_id)
         self.files = {}
 
         template_image = "{0}_mean_diffeomorphic{1}.nii.gz".format(template_id, iteration)
@@ -703,9 +717,9 @@ class normalize_DiffeomorphicMean(object):
             self.pegasus_job.uses(outputfile, link=Link.OUTPUT, transfer=transferflag)
 
 class normalize_ComposeWarp(object):
-    def __init__(self, template_tier, source_tier, template_id, source_id, affine, diffeomorphic, hierarchy, matrix, transferflag, template=None):
-        self.job_id = "{0}-{1}".format(source_tier, source_id)
-        self.pegasus_job = Job(name="Normalize_ComposeWarp", namespace="dipa", id=self.job_id+"_Normalize_ComposeWarp")
+    def __init__(self, subset_id, template_tier, source_tier, template_id, source_id, affine, diffeomorphic, hierarchy, matrix, transferflag, template=None):
+        self.job_id = subset_id+"_Normalize_ComposeWarp"
+        self.pegasus_job = Job(name="Normalize_ComposeWarp", namespace="dipa", id=self.job_id)
         self.files = {}
 
         composed_file = "{0}-{1}_{2}-{3}_composed.df.nii.gz".format(template_tier, template_id, source_tier, source_id)
@@ -750,9 +764,9 @@ class normalize_ComposeWarp(object):
         self.pegasus_job.addArguments(*args)
 
 class normalize_ComposeMean(object):
-    def __init__(self, template_tier, source_tier, template_id, hierarchy, matrix, template, transferflag):
-        self.job_id = "{0}-{1}".format(template_tier, template_id)
-        self.pegasus_job = Job(name="Normalize_ComposeMean", namespace="dipa", id=self.job_id+"_Normalize_ComposeMean")
+    def __init__(self, subset_id, template_tier, source_tier, template_id, hierarchy, matrix, template, transferflag):
+        self.job_id = subset_id+"_Normalize_ComposeMean"
+        self.pegasus_job = Job(name="Normalize_ComposeMean", namespace="dipa", id=self.job_id)
         self.files = {}
 
         final_mean_file = "{0}-{1}_template.nii.gz".format(template_tier, template_id)
@@ -809,8 +823,8 @@ class normalize_ComposeMean(object):
 
 class normalize_ComposeFullWarp(object):
     def __init__(self, child_index, child_matrix, hierarchies, transferflag):
-        self.job_id = "{0}-{1}".format(hierarchies[-1], child_index[-1])
-        self.pegasus_job = Job(name="Normalize_ComposeFullWarp", namespace="dipa", id=self.job_id+"_Normalize_ComposeFullWarp")
+        self.job_id = "{0}-{1}_Normalize_ComposeFullWarp".format(hierarchies[-1], child_index[-1])
+        self.pegasus_job = Job(name="Normalize_ComposeFullWarp", namespace="dipa", id=self.job_id)
         self.files = {}
         template_tier = hierarchies[0]
         template_id = child_index[0]

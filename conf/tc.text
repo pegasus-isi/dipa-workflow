@@ -1,3 +1,82 @@
+tr dipa::Preprocess_Eddy{
+    site waisman {
+        pfn "${EXECUTABLE_DIR}/Preprocess_Eddy.sh"
+        arch "x86_64"
+        os "LINUX"
+        type "INSTALLED"
+
+	#matches condor.request_cpus
+	profile pegasus "cores" "1"
+	profile pegasus "memory" "512"
+	profile condor  "request_disk" "2"
+
+	# environment variables that the scripts require
+  profile env "FSL_ROOT" "${FSL_ROOT}"
+	profile env "EXECUTABLE_DIR" "${EXECUTABLE_DIR}"
+
+    }
+}
+
+tr dipa::Preprocess_EddyCorrect{
+    site waisman {
+        pfn "${EXECUTABLE_DIR}/Preprocess_Eddy.sh"
+        arch "x86_64"
+        os "LINUX"
+        type "INSTALLED"
+
+	#matches condor.request_cpus
+	profile pegasus "cores" "1"
+	profile pegasus "memory" "512"
+	profile condor  "request_disk" "2"
+
+	# environment variables that the scripts require
+  profile env "FSL_ROOT" "${FSL_ROOT}"
+	profile env "EXECUTABLE_DIR" "${EXECUTABLE_DIR}"
+
+    }
+}
+
+tr dipa::Preprocess_OrientationCheck{
+    site waisman {
+        pfn "${EXECUTABLE_DIR}/orientationcheck.py"
+        arch "x86_64"
+        os "LINUX"
+        type "INSTALLED"
+
+	#matches condor.request_cpus
+	profile pegasus "cores" "1"
+	profile pegasus "memory" "512"
+	profile condor  "request_disk" "2"
+
+	# environment variables that the scripts require
+	profile env "EXECUTABLE_DIR" "${EXECUTABLE_DIR}"
+
+  # tells pegasus-kickstart to prepend path with the following path
+	# used to pick up the nonstandard python installation
+	profile env "KICKSTART_PREPEND_PATH" "/home/schoen/Public/DIPA/ThirdParty/Python/bin/"
+
+    }
+}
+
+tr dipa::Preprocess_Fit_Dipy{
+    site waisman {
+        pfn "${EXECUTABLE_DIR}/fit.py"
+        arch "x86_64"
+        os "LINUX"
+        type "INSTALLED"
+
+	#matches condor.request_cpus
+	profile pegasus "cores" "1"
+	profile pegasus "memory" "512"
+	profile condor  "request_disk" "2"
+
+	# tells pegasus-kickstart to prepend path with the following path
+	# used to pick up the nonstandard python installation
+	profile env "KICKSTART_PREPEND_PATH" "/home/schoen/Public/DIPA/ThirdParty/Python/bin/"
+
+    }
+}
+
 tr dipa::Normalize_ImageDim{
     site waisman {
         pfn "${EXECUTABLE_DIR}/getimagedim.py"

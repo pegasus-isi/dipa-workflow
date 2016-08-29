@@ -1,4 +1,4 @@
-#!../Miniconda/bin/python
+#!/usr/bin/env python
 import os, sys, pandas, math
 import numpy as np
 import nibabel as nib

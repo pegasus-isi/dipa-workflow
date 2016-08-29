@@ -119,8 +119,10 @@ def create_workflow(options, console):
     """
     This generates a dipa dax
     """
-
-    dax = ADAG( "dipa" )
+    if options["ProjectName"] == "Project":
+        dax = ADAG( "DIPA")
+    else:
+        dax = ADAG( "DIPA-"+options["ProjectName"])
     try:
         matrix = pandas.read_csv(clean_path(options["InputFile"]))
 
@@ -245,6 +247,7 @@ def main():
     jsonsettings["DTITK_ROOT"] = os.path.abspath(jsonsettings["DTITK_ROOT"])
     jsonsettings["FSL_ROOT"] = os.path.abspath(jsonsettings["FSL_ROOT"])
     jsonsettings["CAMINO_ROOT"] = os.path.abspath(jsonsettings["CAMINO_ROOT"])
+    jsonsettings["PYTHON_PATH"] = os.path.abspath(jsonsettings["PYTHON_PATH"])
     environment.update(jsonsettings)
 
     environment["ProjectDir"] = options["ProjectDir"]
@@ -274,6 +277,7 @@ def main():
                         options["ChangedDax"] = True
         shutil.rmtree(options["ProjectDir"]+"/conf")
     shutil.copytree(options["DipaDir"]+"/conf",options["ProjectDir"]+"/conf")
+    shutil.copyfile(options["InputFile"], options["ProjectDir"]+"/conf/input.csv")
 
 
     #Create the DAX
@@ -286,8 +290,8 @@ def main():
     #Run pegasus-plan with these settings.
     os.chdir(options["ProjectDir"])
     console.log(Notice("Log", "Submitting the workflow"))
-    if os.listdir("{ProjectDir}/outputs".format(**options)) == []:
-        pegasus_command = "pegasus-plan --conf {ProjectDir}/conf/pegasusrc --sites {Site} --input-dir {ProjectDir}/input --output-site local --dir {ProjectDir}/working --relative-submit-dir ./condorsubmit --dax {DaxFile} --force --cleanup none --submit -vv".format(**options)
+    if os.listdir("{ProjectDir}/outputs".format(**options)) == [] or options["ChangedDax"] == True:
+        pegasus_command = "pegasus-plan --conf {ProjectDir}/conf/pegasusrc --sites {Site} --input-dir {ProjectDir}/input --output-site local --dir {ProjectDir}/working --relative-submit-dir ./condorsubmit --dax {DaxFile} --cleanup none --submit -vv".format(**options)
     else:
         pegasus_command = "pegasus-run {ProjectDir}/working/condorsubmit".format(**options)
     pegasus_graphviz_command = "pegasus-graphviz {DaxFile} -o {DotFile} -s -l id".format(**options)

@@ -25,7 +25,6 @@ while [[ "$#" > 1 ]]; do case $1 in
     --outrotatedbvecs) outbvecs="$2";;
     --outparams) outparams="$2";;
     --outmovementrms) outmovementrms="$2";;
-    --outmovementrmsrestricted) outmovementrmsrestricted="$2";;
     --outpostshellalignmentparams) outpostshellalignmentparams="$2";;
     --outoutlierreport) outoutlierreport="$2";;
     --outoutliermap) outoutliermap="$2";;
@@ -143,7 +142,7 @@ for val in Input:${imain} Input:${mask} Input:${index} Input:${acqp} Input:${bva
   fi
 done
 
-for val in Output:${outcorrected} Output:${outbvecs} Output:${outparams} Output:${outmovementrms} Output:${outmovementrmsrestricted} Output:${outpostshellalignmentparams} Output:${outoutlierreport} Output:${outoutliermap} Output:${outoutliermapstdev} Output:${outoutliermapsqr} ; do
+for val in Output:${outcorrected} Output:${outbvecs} Output:${outparams} Output:${outmovementrms} Output:${outpostshellalignmentparams} Output:${outoutlierreport} Output:${outoutliermap} Output:${outoutliermapstdev} Output:${outoutliermapsqr} ; do
   if [[ $val == "Output:" ]] ; then
     echo "One or more out file was not specified! Exiting."
     exit 1
@@ -152,14 +151,13 @@ for val in Output:${outcorrected} Output:${outbvecs} Output:${outparams} Output:
   fi
 done
 
-echo ${FSL_ROOT}/eddy_openmp $inputstring --data_is_shelled
+echo ${FSL_ROOT}/eddy_openmp $inputstring --data_is_shelled --verbose
 ${FSL_ROOT}/eddy_openmp $inputstring --data_is_shelled
-
+ls ${imain%%.*}_out.*
 mv ${imain%%.*}_out.nii.gz $outcorrected
-mv ${imain%%.*}_out.rotated_bvecs $outbvecs
+mv ${imain%%.*}_out.eddy_rotated_bvecs $outbvecs
 mv ${imain%%.*}_out.eddy_parameters $outparams
 mv ${imain%%.*}_out.eddy_movement_rms $outmovementrms
-mv ${imain%%.*}_out.eddy_restricted_movement_rms $outmovementrmsrestricted
 mv ${imain%%.*}_out.eddy_post_eddy_shell_alignment_parameters $outpostshellalignmentparams
 mv ${imain%%.*}_out.eddy_outlier_report $outoutlierreport
 mv ${imain%%.*}_out.eddy_outlier_map $outoutliermap

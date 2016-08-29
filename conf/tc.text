@@ -6,7 +6,7 @@ tr dipa::Preprocess_Eddy{
         type "INSTALLED"
 
 	#matches condor.request_cpus
-	profile pegasus "cores" "1"
+	profile pegasus "cores" "2"
 	profile pegasus "memory" "8000"
 	profile condor  "request_disk" "1000000"
 
@@ -53,7 +53,7 @@ tr dipa::Preprocess_OrientationCheck{
 
   # tells pegasus-kickstart to prepend path with the following path
 	# used to pick up the nonstandard python installation
-	profile env "KICKSTART_PREPEND_PATH" "/home/schoen/Public/DIPA/ThirdParty/Python/bin/"
+	profile env "KICKSTART_PREPEND_PATH" "${PYTHON_PATH}"
 
     }
 }
@@ -67,12 +67,15 @@ tr dipa::Preprocess_Fit_Dipy{
 
 	#matches condor.request_cpus
 	profile pegasus "cores" "1"
-	profile pegasus "memory" "512"
+	profile pegasus "memory" "4096"
 	profile condor  "request_disk" "2"
+
+  # environment variables that the scripts require
+	profile env "EXECUTABLE_DIR" "${EXECUTABLE_DIR}"
 
 	# tells pegasus-kickstart to prepend path with the following path
 	# used to pick up the nonstandard python installation
-	profile env "KICKSTART_PREPEND_PATH" "/home/schoen/Public/DIPA/ThirdParty/Python/bin/"
+	profile env "KICKSTART_PREPEND_PATH" "${PYTHON_PATH}"
 
     }
 }
@@ -91,7 +94,7 @@ tr dipa::Normalize_ImageDim{
 
 	# tells pegasus-kickstart to prepend path with the following path
 	# used to pick up the nonstandard python installation
-	profile env "KICKSTART_PREPEND_PATH" "/home/schoen/Public/DIPA/ThirdParty/Python/bin/"
+	profile env "KICKSTART_PREPEND_PATH" "${PYTHON_PATH}"
 
     }
 }
@@ -114,7 +117,7 @@ tr dipa::Normalize_CreateTemplate{
 
 	# tells pegasus-kickstart to prepend path with the following path
 	# used to pick up the nonstandard python installation
-	profile env "KICKSTART_PREPEND_PATH" "/home/schoen/Public/DIPA/ThirdParty/Python/bin/"
+	profile env "KICKSTART_PREPEND_PATH" "${PYTHON_PATH}"
 
     }
 }

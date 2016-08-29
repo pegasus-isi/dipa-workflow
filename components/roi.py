@@ -6,54 +6,21 @@ import pandas
 from utility.console import Notice
 from component import Component
 
-class preprocess(Component):
+class roi(Component):
     """
-    Preprocess component of DIPA.
-    Uses a variety of tools from FSL and DIPY to convert raw DWI-weighted images to Semi-Positive Definite files (SPD).
-    If the type of eddy correction is "eddy", the matrix expects a minimum of 7 columns:
-        * ID
-        * DWI
-        * MASK
-        * BVALS
-        * BVECS
-        * INDEX
-        * ACQPARAMS
-    Any extra columns would include those being fed in for hierarchical normalization.
-    If the type of eddy correction is "eddy_correct", the matrix expects a minimum of 2 columns:
-        * ID
-        * DWI
+    ROI Extraction component of DIPA.
+    Uses a variety of tools from FSL, ANTs, and DTI-TK to extract roi values from predefined and custom atlases designated by the user.
+    Will automatically detect the types of measures to extract based on knowing the fit_type, fit_method, is_shelled, and multishelled variables.
     """
-    def __init__(self, matrix, hierarchy=["PROJECT","ID"], name="Project", correct_type="eddy",
-                               orient_check=True, fit_type="dipy", fit_method="WLS", eddy_interp="spline",
-                               is_shelled=True, multishelled=True, topup=False, eddy_flm="quadratic", eddy_slm="none", eddy_fwhm=0,
-                               eddy_niters=5, eddy_fep=False, eddy_resample='jac', eddy_nvoxhp=1000, eddy_ff=10.0,
-                               eddy_no_sep_offs=False, eddy_dont_peas=False, transferflag=True):
+    def __init__(self, matrix, roimatrix, hierarchy=["PROJECT","ID"], name="Project", fit_type="dipy", fit_method="WLS", is_shelled=True, multishelled=True, transferflag=True):
         Component.__init__(self, matrix, hierarchy, name, transferflag)
 
-        self.correct_type = correct_type
+        self.roimatrix = roimatrix
         self.fit_type = fit_type
         self.fit_method = fit_method
-        self.interp = eddy_interp
-        self.orient_check = orient_check
         self.shelled = is_shelled
         self.multishelled = multishelled
-        if self.correct_type == "eddy":
-            self.topup = topup
-            if self.topup == True:
-                self.warnings.append(Notice("Warning", "Using topup is not currently implemented."))
-                self.topup = False
-            self.topup = topup
-            self.flm = eddy_flm
-            self.slm = eddy_slm
-            self.fwhm = eddy_fwhm
-            self.niters = eddy_niters
-            self.fep = eddy_fep
-            self.resample = eddy_resample
-            self.nvoxhp = eddy_nvoxhp
-            self.ff = eddy_ff
-            self.no_sep_offs = eddy_no_sep_offs
-            self.dont_peas = eddy_dont_peas
-
+        
         if self.fit_type == "camino":
             self.warnings.append(Notice("Warning", "Camino is not currently implemented. Defaulting to DIPY fitting"))
             self.fit_type = "dipy"

@@ -1,5 +1,4 @@
-#!/bin/python
-import matplotlib.pyplot as plt
+#!/usr/bin/env python
 import os, sys, pandas, math, numpy
 import nibabel as nib
 import dipy.reconst.dti as dti
@@ -12,8 +11,6 @@ from dipy.io import read_bvals_bvecs
 from docopt import docopt
 import dipy.data as dpd
 reload(dti)
-#print(vtk.vtkVersion.GetVTKMajorVersion())
-import matplotlib.pyplot as plt
 from xvfbwrapper import Xvfb
 
 Version = "0.1"

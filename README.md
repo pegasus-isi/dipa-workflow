@@ -49,4 +49,4 @@ This is an example of hierarchical normalization (3 groups of 2):
 ## Acknowledgments
 * Karan Vahi (Pegasus) [Github](https://github.com/vahi)
 * David Thompson (System Administration Consultant)
-* Ross Luo (Testing)
+* Ross Luo (Testing) [Linkedin](https://www.linkedin.com/in/ross-luo-143897120)

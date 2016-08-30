@@ -3,6 +3,7 @@ import os, sys, pandas, math
 import numpy as np
 import nibabel as nib
 import dipy.reconst.dki as dki
+import dipy.reconst.dti as dti
 from dipy.segment.mask import median_otsu
 from dipy.align.reslice import reslice
 from dipy.core.gradients import gradient_table
@@ -37,6 +38,8 @@ Options:
     --out_rk <FILE>             Output the RK from the dki model (path). [default: None]
     --out_ak <FILE>             Output the AK from the dki model (path). [default: None]
     --fit_method <METHOD>       Specify a method for fitting (WLS or OLS). [default: WLS]
+    --mask_median_radius <INT>  Radius (in voxels) of the applied median filter [default: 4]
+    --mask_numpass <INT>        Number of pass of the median filter [default: 4]
 
 """.format(Version)
 
@@ -45,25 +48,34 @@ Options:
 #============================================================================
 
 class Fitter(object):
-    def __init__(self, data, mask, gradient_table, fit_method, out_dti=None, out_dki=None, out_residual=None, out_noise=None, out_snr=None, out_fa=None, out_md=None, out_rd=None, out_ad=None, out_mk=None, out_rk=None, out_ak=None):
+    def __init__(self, data, mask, gradient_table, fit_method, median_radius=4, numpass=4, out_dti=None, out_dki=None, out_residual=None, out_noise=None, out_snr=None, out_fa=None, out_md=None, out_rd=None, out_ad=None, out_mk=None, out_rk=None, out_ak=None):
         self.raw_data = data
         self.mask = mask
         self.data = self.raw_data
         self.gradient_table = gradient_table
+        self.median_radius = int(median_radius)
+        self.numpass = int(numpass)
 
         #Generate an average B0 image
         values = np.array(self.gradient_table.bvals)
+        if len(np.unique(values)) > 2:
+            self.multishelled = True
+        else:
+            self.multishelled = False
         ii = np.where(values == self.gradient_table.bvals.min())[0]
         self.b0_average = np.mean(self.data.get_data()[:,:,:,ii], axis=3)
 
         #Fitted
         #self.dti_fitted = None
-        self.dki_fitted = None
+        self.fitted = None
 
 
         #Raw-Type values
         self.out_dti = None
-        self.out_dti_path = out_dti
+        if self.multishelled:
+            self.out_dti_path = out_dti
+        else:
+            self.out_dti_path = None
         self.out_dki = None
         self.out_dki_path = out_dki
         self.out_residual = None
@@ -84,12 +96,18 @@ class Fitter(object):
         self.out_rd_path = out_rd
         self.out_ad = None
         self.out_ad_path = out_ad
+        if self.multishelled:
+            self.out_mk_path = out_mk
+            self.out_rk_path = out_rk
+            self.out_ak_path = out_ak
+        else:
+            self.out_mk_path = None
+            self.out_rk_path = None
+            self.out_ak_path = None
         self.out_mk = None
-        self.out_mk_path = out_mk
         self.out_rk = None
-        self.out_rk_path = out_rk
         self.out_ak = None
-        self.out_ak_path = out_ak
+
 
     def save(self):
         out_matrix = [
@@ -125,7 +143,7 @@ class Fitter(object):
         if self.mask == None:
             print("Generating mask with median_otsu.")
             raw_data = self.raw_data.get_data()
-            masked_data, mask = median_otsu(raw_data, 2,2)
+            masked_data, mask = median_otsu(raw_data, self.median_radius, self.numpass)
 
             #Update the instance
             self.data = nib.nifti1.Nifti1Image(masked_data.astype(np.float32), self.raw_data.get_affine())
@@ -156,19 +174,28 @@ class Fitter(object):
 
         #Generate the dk model
         print("Generating the models.")
-        dkimodel = dki.DiffusionKurtosisModel(self.gradient_table)
+        if self.multishelled:
+            model = dki.DiffusionKurtosisModel(self.gradient_table, fit_method=self.fit_method)
+        else:
+            model = dti.TensorModel(self.gradient_table, fit_method=self.fit_method)
+
         print("Fitting the data.")
-        self.dki_fitted = dkimodel.fit(data)
+        self.fitted = model.fit(data)
 
         #Generate the lower-triangular dataset
-        print("Generating the kurtosis tensor data.")
-        self.out_dti = nib.nifti1.Nifti1Image(self.dki_fitted.lower_triangular(), self.data.get_affine())
-        self.out_dki = nib.nifti1.Nifti1Image(self.dki_fitted.kt, self.data.get_affine())
+        if self.multishelled:
+            print("Generating the kurtosis tensor data.")
+            self.out_dti = nib.nifti1.Nifti1Image(self.fitted.lower_triangular(), self.data.get_affine())
+            self.out_dki = nib.nifti1.Nifti1Image(self.fitted.kt, self.data.get_affine())
+        else:
+            print("Generating the tensor data.")
+            self.out_dti = nib.nifti1.Nifti1Image(self.fitted.lower_triangular(), self.data.get_affine())
+            self.out_dki = None
 
         #Generate the residuals
         if self.out_residual_path != None or self.out_noise_path != None or self.out_snr_path != None:
             print("Estimating input data.")
-            estimate_data = self.dki_fitted.predict(self.gradient_table, S0=self.b0_average)
+            estimate_data = self.fitted.predict(self.gradient_table, S0=self.b0_average)
             print("Calculating residuals.")
             residuals = np.absolute(data - estimate_data)
             noise = np.std(residuals, axis=3)
@@ -179,15 +206,14 @@ class Fitter(object):
 
 
     def extract_scalars(self):
-        if self.out_dti != None:
-            self.out_fa = nib.nifti1.Nifti1Image(self.dki_fitted.fa.astype(np.float32), self.data.get_affine())
-            self.out_md = nib.nifti1.Nifti1Image(self.dki_fitted.md.astype(np.float32), self.data.get_affine())
-            self.out_rd = nib.nifti1.Nifti1Image(self.dki_fitted.rd.astype(np.float32), self.data.get_affine())
-            self.out_ad = nib.nifti1.Nifti1Image(self.dki_fitted.ad.astype(np.float32), self.data.get_affine())
-        if self.out_dki != None:
-            self.out_mk = nib.nifti1.Nifti1Image(self.dki_fitted.mk().astype(np.float32), self.data.get_affine())
-            self.out_rk = nib.nifti1.Nifti1Image(self.dki_fitted.rk().astype(np.float32), self.data.get_affine())
-            self.out_ak = nib.nifti1.Nifti1Image(self.dki_fitted.ak().astype(np.float32), self.data.get_affine())
+        self.out_fa = nib.nifti1.Nifti1Image(self.fitted.fa.astype(np.float32), self.data.get_affine())
+        self.out_md = nib.nifti1.Nifti1Image(self.fitted.md.astype(np.float32), self.data.get_affine())
+        self.out_rd = nib.nifti1.Nifti1Image(self.fitted.rd.astype(np.float32), self.data.get_affine())
+        self.out_ad = nib.nifti1.Nifti1Image(self.fitted.ad.astype(np.float32), self.data.get_affine())
+        if self.multishelled:
+            self.out_mk = nib.nifti1.Nifti1Image(self.fitted.mk().astype(np.float32), self.data.get_affine())
+            self.out_rk = nib.nifti1.Nifti1Image(self.fitted.rk().astype(np.float32), self.data.get_affine())
+            self.out_ak = nib.nifti1.Nifti1Image(self.fitted.ak().astype(np.float32), self.data.get_affine())
 
 #============================================================================
 #             Run
@@ -235,7 +261,9 @@ def run(rawargs):
               "--out_ad": "out_ad",
               "--out_mk": "out_mk",
               "--out_rk": "out_rk",
-              "--out_ak": "out_ak"}
+              "--out_ak": "out_ak",
+              "--mask_median_radius": "median_radius",
+              "--mask_numpass": "numpass"}
 
     for key, value in lookup.iteritems():
         if arguments[key] == "None" or arguments[key] == None:

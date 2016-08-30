@@ -52,6 +52,8 @@ Options:
      --orient_check <bool>           (Preprocess) Do generate output images showing orientation of images. [default: True]
      --fit_type <str>                (Preprocess) Select either 'dipy' or 'camino' [default: dipy]
      --fit_method <str>              (Preprocess) Select either 'WLS' (weighted least squares) or 'OLS' (ordinary least squares) [default: WLS]
+     --mask_median_radius <INT>      (Preprocess) Radius (in voxels) of the applied median filter [default: 4]
+     --mask_numpass <INT>            (Preprocess) Number of pass of the median filter [default: 4]
      --shelled <bool>                (Preprocess) Either 'True' or 'False'. Specify whether data is shelled. [default: True]
      --multishelled <bool>           (Preprocess) Either 'True' or 'False'. Specify whether data is multi-shelled. [default: True]
      --template <path>               (Normalization) Designate an original template (optional). [default: None]
@@ -147,7 +149,8 @@ def create_workflow(options, console):
     #print(options)
     preprocessing_section = preprocess(matrix, hierarchy=options["Hierarchy"], name=options["ProjectName"], correct_type=options["CorrectType"],
                                                orient_check=options["OrientationCheck"], fit_type=options["FitType"], fit_method=options["FitMethod"], eddy_interp=options["EddyInterp"],
-                                               is_shelled=options["Shelled"], multishelled=options["Multishelled"], topup=options["Topup"], eddy_flm=options["EddyFLM"], eddy_slm=options["EddySLM"], eddy_fwhm=options["EddyFWHM"],
+                                               is_shelled=options["Shelled"], multishelled=options["Multishelled"], mask_median_radius=options["MaskMedianRadius"], mask_numpass=options["MaskNumpass"],
+                                               topup=options["Topup"], eddy_flm=options["EddyFLM"], eddy_slm=options["EddySLM"], eddy_fwhm=options["EddyFWHM"],
                                                eddy_niters=options["EddyNiters"], eddy_fep=options["EddyFEP"], eddy_resample=options["EddyResample"], eddy_nvoxhp=options["EddyNvoxhp"], eddy_ff=options["EddyFF"],
                                                eddy_no_sep_offs=options["EddyNoSepOffs"], eddy_dont_peas=options["EddyDontPeas"], transferflag=options["KeepFiles"])
     for message in preprocessing_section.messages:

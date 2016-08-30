@@ -2,5 +2,5 @@
 "DTITK_ROOT": "/home/schoen/Public/DTITK/",
 "FSL_ROOT": "/home/schoen/Scripts/dipa-workflow/thirdparty/fsl",
 "CAMINO_ROOT": "/apps/x86_64_sci7/camino-latest/bin/",
-"PYTHON_PATH": "/home/schoen/Public/Miniconda/bin"
+"PYTHON_PATH": "/home/schoen/Public/Python/bin"
 }

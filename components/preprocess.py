@@ -25,7 +25,8 @@ class preprocess(Component):
     """
     def __init__(self, matrix, hierarchy=["PROJECT","ID"], name="Project", correct_type="eddy",
                                orient_check=True, fit_type="dipy", fit_method="WLS", eddy_interp="spline",
-                               is_shelled=True, multishelled=True, topup=False, eddy_flm="quadratic", eddy_slm="none", eddy_fwhm=0,
+                               is_shelled=True, multishelled=True, mask_median_radius=4, mask_numpass=4,
+                               topup=False, eddy_flm="quadratic", eddy_slm="none", eddy_fwhm=0,
                                eddy_niters=5, eddy_fep=False, eddy_resample='jac', eddy_nvoxhp=1000, eddy_ff=10.0,
                                eddy_no_sep_offs=False, eddy_dont_peas=False, transferflag=True):
         Component.__init__(self, matrix, hierarchy, name, transferflag)
@@ -87,6 +88,8 @@ class preprocess(Component):
         "--fit_method": "FitMethod",
         "--shelled": "Shelled",
         "--multishelled": "Multishelled",
+        "--mask_median_radius": "MaskMedianRadius",
+        "--mask_numpass": "MaskNumpass"
         }
 
         return args

@@ -56,8 +56,10 @@ class preprocess(Component):
             self.dont_peas = eddy_dont_peas
 
         if self.fit_type == "camino":
-            self.warnings.append(Notice("Warning", "Camino is not currently implemented. Defaulting to DIPY fitting"))
-            self.fit_type = "dipy"
+            # self.warnings.append(Notice("Warning", "Camino is not currently implemented. Defaulting to DIPY fitting"))
+            # self.fit_type = "camino"
+            self.warnings.append(Notice("Warning", "Using nldt_pos for Camino DTI fitting."))
+            self.fit_method = "nldt_pos"
         if self.fit_type == "dipy" and self.fit_method not in ["WLS", "OLS"]:
             self.warnings.append(Notice("Warning", "Using DIPY fitting requires either 'WLS' or 'OLS' as a fitting method. Defaulting to 'WLS'."))
             self.fit_method = "WLS"
@@ -115,8 +117,10 @@ class preprocess(Component):
 
             if self.fit_type == 'dipy':
                 fit_job = Preprocess_Fit_Dipy(full_id, self.multishelled, self.fit_method, self.transferflag)
+            elif self.fit_type == 'camino':
+                fit_job = Preprocess_Fit_Camino(full_id, self.fit_method)
             else:
-                fit_job = Preprocess_Fit_Camino()
+                progress.add_warning(Notice("Error", "Please choose from dipy or camino for fit_type for now."))
             dax.addJob(fit_job.pegasus_job)
             self.files.update(fit_job.files)
             dax.depends(parent=eddy_job.pegasus_job, child=fit_job.pegasus_job)
@@ -263,6 +267,65 @@ class Preprocess_Fit_Dipy(object):
     def __init__(self, subset_id, multishelled, fitmethod, transferflag):
         self.job_id = subset_id+"_Preprocess_Fit"
         self.pegasus_job = Job(name="Preprocess_Fit_Dipy", namespace="dipa", id=self.job_id)
+        self.files = {}
+
+        imageinputfile = subset_id+"_dwi_ecc.nii.gz"
+        bvecsinputfile = subset_id+"_rotated_bvecs.txt"
+        bvalsinputfile = subset_id+"_bvals.txt"
+
+        outspd = subset_id+"_spd.nii.gz"
+        outdki = subset_id+"_dki.nii.gz"
+        outresidual = subset_id+"_residual.nii.gz"
+        outnoise = subset_id+"_noise.nii.gz"
+        outsnr = subset_id+"_snr.nii.gz"
+        outfa = subset_id+"_fa.nii.gz"
+        outmd = subset_id+"_md.nii.gz"
+        outrd = subset_id+"_rd.nii.gz"
+        outad = subset_id+"_ad.nii.gz"
+        outmk = subset_id+"_mk.nii.gz"
+        outrk = subset_id+"_rk.nii.gz"
+        outak = subset_id+"_ak.nii.gz"
+
+        args = [
+        "--image", imageinputfile,
+        "--bvals", bvalsinputfile,
+        "--bvecs", bvecsinputfile,
+        "--out_dti", outspd,
+        "--out_residual", outresidual,
+        "--out_noise", outnoise,
+        "--out_snr", outsnr,
+        "--out_fa", outfa,
+        "--out_md", outmd,
+        "--out_rd", outrd,
+        "--out_ad", outad,
+        "--fit_method", fitmethod
+        ]
+
+        input_files = [imageinputfile, bvecsinputfile, bvalsinputfile]
+        output_files = [outspd,outresidual,outnoise,outsnr,outfa,outmd,outrd,outad]
+
+        if multishelled:
+            args.extend([
+            "--out_dki", outdki,
+            "--out_mk", outmk,
+            "--out_rk", outrk,
+            "--out_ak", outak
+            ])
+            output_files.extend([outdki,outmk,outrk,outak])
+
+        self.pegasus_job.addArguments(*args)
+
+        for inputfile in input_files:
+            self.pegasus_job.uses(inputfile, link=Link.INPUT)
+        for outputfile in output_files:
+            self.pegasus_job.uses(outputfile, link=Link.OUTPUT, transfer=True)
+
+
+class Preprocess_Fit_Camino(object):
+    "A quick dipy-based tool to fit data."
+    def __init__(self, subset_id, multishelled, fitmethod, transferflag):
+        self.job_id = subset_id+"_Preprocess_Fit"
+        self.pegasus_job = Job(name="Preprocess_Fit_Camino", namespace="dipa", id=self.job_id)
         self.files = {}
 
         imageinputfile = subset_id+"_dwi_ecc.nii.gz"

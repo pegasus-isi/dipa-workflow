@@ -80,6 +80,30 @@ tr dipa::Preprocess_Fit_Dipy{
     }
 }
 
+# Madison, WI. 08/31/2016. 1:02 p.m.
+tr dipa::Preprocess_Fit_Camino{
+    site waisman {
+        pfn "${EXECUTABLE_DIR}/Preprocess_FitCamino.sh"
+        arch "x86_64"
+        os "LINUX"
+        type "INSTALLED"
+
+	#matches condor.request_cpus
+	profile pegasus "cores" "1"
+	profile pegasus "memory" "4096"
+	profile condor  "request_disk" "2"
+
+  # environment variables that the scripts require
+	profile env "EXECUTABLE_DIR" "${EXECUTABLE_DIR}"
+	profile env "FSL_ROOT" "${FSL_ROOT}"
+	profile env "CAMINO_ROOT" "${CAMINO_ROOT}"
+	profile env "CAMINO_HEAP_SPACE" 5000
+
+	# tells pegasus-kickstart to prepend path with the following path
+	# used to pick up the nonstandard python installation
+    }
+}
+
 tr dipa::Normalize_ImageDim{
     site waisman {
         pfn "${EXECUTABLE_DIR}/getimagedim.py"

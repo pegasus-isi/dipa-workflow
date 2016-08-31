@@ -1,6 +1,5 @@
 #!/bin/sh
-# Om Shanti. Om Sai Ram. Madison, WI. 08/31/2016. 11:08 a.m.
-# Om Shanti. Om Sai Ram. April 13, 2015. 1:23 p.m. Madison, WI.
+# Madison, WI. 08/31/2016. 11:08 a.m.
 
 #Accept Arguments
 while [[ "$#" > 1 ]]; do case $1 in

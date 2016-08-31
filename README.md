@@ -33,7 +33,7 @@ This is an example of registration (always non-hierarchical):
 ![Registration](/doc/example_registration.png)
 
 ### Normalization (Non-Hierarchical)
-This is an example of non-hierarchical normalization:
+This is an example of non-hierarchical normalization (5 unique individuals):
 ![Non-Hierarchical Normalization](/doc/example_normalization_nohierarchy.png)
 
 ### Normalization (Hierarchical)

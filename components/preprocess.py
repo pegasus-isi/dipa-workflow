@@ -232,7 +232,7 @@ class Preprocess_OrientationCheck(object):
         self.files = {}
 
         imageinputfile = subset_id+"_dwi_ecc.nii.gz"
-        bvecsinputfile = subset_id+"_bvecs.txt"
+        bvecsinputfile = subset_id+"_rotated_bvecs.txt"
         bvalsinputfile = subset_id+"_bvals.txt"
 
         outsagittalimage = subset_id+"_sagittal.png"

@@ -293,7 +293,7 @@ class normalize_ImageDim(object):
 
 class normalize_CreateTemplate(object):
     def __init__(self, subset_id, template_tier, source_tier, template_id, hierarchy, matrix, transferflag, template=None):
-        self.job_id = subset_id+"Normalize_CreateTemplate"
+        self.job_id = subset_id+"_Normalize_CreateTemplate"
         self.pegasus_job = Job(name="Normalize_CreateTemplate", namespace="dipa", id=self.job_id)
         self.files = {}
 
